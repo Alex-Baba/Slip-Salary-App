@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
 
 class EmployeeRoleSchema(BaseModel):
@@ -6,7 +6,7 @@ class EmployeeRoleSchema(BaseModel):
     role: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class EmployeeSchema(BaseModel):
     id: int
@@ -18,7 +18,7 @@ class EmployeeSchema(BaseModel):
     manager_id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SalarySchema(BaseModel):
     id: int
@@ -27,7 +27,7 @@ class SalarySchema(BaseModel):
     date: str  
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class AttendanceSchema(BaseModel):
     id: int
@@ -36,7 +36,7 @@ class AttendanceSchema(BaseModel):
     leave_days: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class BonusSchema(BaseModel):
     id: int
@@ -46,13 +46,13 @@ class BonusSchema(BaseModel):
     date: str  
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class EmployeeCreateSchema(BaseModel):
     email: EmailStr
-    password: str
-    first_name: str
-    last_name: str
-    cnp: str
+    password: constr(min_length=8)
+    first_name: constr(min_length=1, max_length=30)
+    last_name: constr(min_length=1, max_length=30)
+    cnp: constr(min_length=13, max_length=13)
     role_id: int
     manager_id: Optional[int] = None
