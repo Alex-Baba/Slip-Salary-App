@@ -6,15 +6,15 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Set work directory
-WORKDIR /app
+WORKDIR /code
 
 # Install dependencies
-COPY rquirements.txt /app/
+COPY rquirements.txt /code/
 RUN pip install --upgrade pip \
 	&& pip install -r rquirements.txt
 
-# Copy project
-COPY ./app /app
+# Copy project files
+COPY . /code/
 
 # Expose port
 EXPOSE 8000
