@@ -23,6 +23,7 @@ from app.api.routers.department import DepartmentListView, DepartmentCreateView
 from app.db.models import EmployeeRole
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from app.api.routers.manager import ManagerListView, DepartmentManagersView
 
 class RoleListView(APIView):
     def get(self, request):
@@ -37,4 +38,6 @@ urlpatterns = [
     path('api/roles/', RoleListView.as_view(), name='role-list'),
     path('api/departments/list/', DepartmentListView.as_view(), name='department-list'),
     path('api/departments/create/', DepartmentCreateView.as_view(), name='department-create'),
+    path('api/managers/', ManagerListView.as_view(), name='manager-list'),
+    path('api/departments/<int:department_id>/managers/', DepartmentManagersView.as_view(), name='department-managers'),
 ]

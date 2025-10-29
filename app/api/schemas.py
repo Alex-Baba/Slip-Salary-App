@@ -8,6 +8,15 @@ class EmployeeRoleSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class ManagerListSchema(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    department_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class EmployeeSchema(BaseModel):
     id: int
     email: EmailStr
@@ -68,3 +77,12 @@ class DepartmentSchema(BaseModel):
 
 class DepartmentCreateSchema(BaseModel):
     name: constr(min_length=1, max_length=100)
+
+class ManagerListSchema(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    department_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
