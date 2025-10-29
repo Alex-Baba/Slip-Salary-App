@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from app.models import Employee, EmployeeRole, Manager
+from app.models import Employee, EmployeeRole, Department
 from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema
 
 
@@ -28,20 +28,30 @@ def create_employee(data: EmployeeCreateSchema) -> Employee:
 	manager = None
 	if data.manager_id is not None:
 		try:
-			manager = Manager.objects.get(id=data.manager_id)
-		except Manager.DoesNotExist:
+			manager = Employee.objects.get(id=data.manager_id)
+		except Employee.DoesNotExist:
 			raise ValidationError({"manager_id": "Invalid manager id"})
+		if manager.role.role not in ("manager", "admin"):
+			raise ValidationError({"manager_id": "Selected employee is not a manager"})
+
+	department = None
+	if getattr(data, 'department_id', None) is not None:
+		try:
+			department = Department.objects.get(id=data.department_id)
+		except Department.DoesNotExist:
+			raise ValidationError({"department_id": "Invalid department id"})
 
 	try:
-		employee = Employee.objects.create(
-			email=data.email,
-			password=make_password(data.password),
-			first_name=data.first_name,
-			last_name=data.last_name,
-			cnp=data.cnp,
-			role=role,
-			manager=manager,
-		)
+			employee = Employee.objects.create(
+				email=data.email,
+				password=make_password(data.password),
+				first_name=data.first_name,
+				last_name=data.last_name,
+				cnp=data.cnp,
+				role=role,
+				manager=manager,
+				department=department,
+			)
 	except IntegrityError as e:
 		raise ValidationError({"detail": f"Database constraint error: {str(e)}"})
 	return employee
@@ -68,4 +78,5 @@ def serialize_employee(employee: Employee) -> EmployeeSchema:
 		cnp=employee.cnp,
 		role=EmployeeRoleSchema(id=employee.role.id, role=employee.role.role),
 		manager_id=employee.manager.id if employee.manager else None,
+		department_id=employee.department.id if employee.department else None,
 	)

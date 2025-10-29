@@ -8,11 +8,11 @@ class EmployeeRole(models.Model):
         return self.role
 
 
-class Manager(models.Model):
-    department = models.CharField(max_length=50)
+class Department(models.Model):
+    name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
-        return f"Manager {self.id} - {self.department}"
+        return self.name
 
 
 class Employee(models.Model):
@@ -21,8 +21,10 @@ class Employee(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     cnp = models.CharField(max_length=1000, unique=True)
-    role = models.ForeignKey(EmployeeRole, on_delete=models.CASCADE)
-    manager = models.ForeignKey(Manager, on_delete=models.SET_NULL, null=True, blank=True)
+    role = models.ForeignKey(EmployeeRole, on_delete=models.PROTECT)
+    manager = models.ForeignKey('self', related_name='subordinates', on_delete=models.SET_NULL, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

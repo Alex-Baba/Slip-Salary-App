@@ -16,6 +16,7 @@ class EmployeeSchema(BaseModel):
     cnp: str
     role: EmployeeRoleSchema
     manager_id: Optional[int] = None
+    department_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -56,3 +57,4 @@ class EmployeeCreateSchema(BaseModel):
     cnp: constr(min_length=13, max_length=13)
     role_id: int
     manager_id: Optional[int] = None
+    department_id: Optional[int] = None
