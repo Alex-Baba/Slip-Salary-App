@@ -58,3 +58,13 @@ class EmployeeCreateSchema(BaseModel):
     role_id: int
     manager_id: Optional[int] = None
     department_id: Optional[int] = None
+
+class DepartmentSchema(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+class DepartmentCreateSchema(BaseModel):
+    name: constr(min_length=1, max_length=100)

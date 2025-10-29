@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from app.models import EmployeeRole
+from app.db.models import EmployeeRole
 
 
 DEFAULT_ROLES = ["employee", "manager", "admin"]

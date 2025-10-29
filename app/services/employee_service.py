@@ -1,19 +1,12 @@
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from app.models import Employee, EmployeeRole, Department
+from app.db.models import Employee, EmployeeRole, Department
 from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema
 
 
 def create_employee(data: EmployeeCreateSchema) -> Employee:
-	"""Create an Employee from validated pydantic data.
-
-	Steps:
-	- validate role exists
-	- validate manager if provided
-	- hash password
-	- create and return Employee instance
-	"""
+	"""Create an Employee from validated pydantic data."""
 	try:
 		role = EmployeeRole.objects.get(id=data.role_id)
 	except EmployeeRole.DoesNotExist:
