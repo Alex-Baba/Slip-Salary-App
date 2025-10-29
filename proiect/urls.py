@@ -18,12 +18,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from app.api.routers.health import HealthCheckView
-from app.api.routers.employee import EmployeeCreateView, EmployeeListView
+from app.api.routers.employee import EmployeeCreateView, EmployeeListView, EmployeeDeleteView
 from app.api.routers.department import DepartmentListView, DepartmentCreateView
 from app.db.models import EmployeeRole
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from app.api.routers.manager import ManagerListView, DepartmentManagersView
+from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
+
 
 class RoleListView(APIView):
     def get(self, request):
@@ -40,4 +42,8 @@ urlpatterns = [
     path('api/departments/create/', DepartmentCreateView.as_view(), name='department-create'),
     path('api/managers/', ManagerListView.as_view(), name='manager-list'),
     path('api/departments/<int:department_id>/managers/', DepartmentManagersView.as_view(), name='department-managers'),
+    path('api/attendance/', AttendanceListView.as_view(), name='attendance-list'),
+    path('api/attendance/upsert/', AttendanceUpsertView.as_view(), name='attendance-upsert'),
+    path('api/attendance/<int:attendance_id>/update/', AttendanceUpdateView.as_view(), name='attendance-update'),
+    path('api/employees/<int:employee_id>/delete/', EmployeeDeleteView.as_view(), name='employee-delete'),
 ]

@@ -4,7 +4,7 @@ from rest_framework import status
 from django.core.exceptions import ValidationError
 from pydantic import ValidationError as PydanticValidationError
 from app.api.schemas import EmployeeCreateSchema
-from app.services.employee_service import create_employee, serialize_employee, get_all_employees
+from app.services.employee_service import create_employee, serialize_employee, get_all_employees, get_employee
 
 
 class EmployeeCreateView(APIView):
@@ -28,5 +28,20 @@ class EmployeeListView(APIView):
         employees = get_all_employees()
         serialized_employees = [serialize_employee(emp).dict() for emp in employees]
         return Response(serialized_employees, status=status.HTTP_200_OK)
+
+class EmployeeDeleteView(APIView):
+    def delete(self, request, employee_id: int):
+        """Delete an employee and return their data (captured pre-deletion)."""
+        try:
+            employee = get_employee(employee_id)
+        except ValidationError as e:
+            details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
+            return Response({"model_errors": details}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize BEFORE deleting so fields like id remain intact
+        serialized = serialize_employee(employee).dict()
+        employee.delete()
+        # Optionally could return 204 No Content; keeping 200 with payload for confirmation.
+        return Response(serialized, status=status.HTTP_200_OK)
 
   

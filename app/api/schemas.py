@@ -44,6 +44,8 @@ class AttendanceSchema(BaseModel):
     employee_id: int
     working_days: int
     leave_days: int
+    year: int
+    month: int
 
     class Config:
         from_attributes = True
@@ -58,6 +60,17 @@ class BonusSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class AttendanceCreateSchema(BaseModel):
+    employee_id: int
+    working_days: int
+    leave_days: int
+    year: int
+    month: int
+
+class AttendanceUpdateSchema(BaseModel):
+    working_days: Optional[int] = None
+    leave_days: Optional[int] = None
+
 class EmployeeCreateSchema(BaseModel):
     email: EmailStr
     password: constr(min_length=8)
@@ -67,6 +80,16 @@ class EmployeeCreateSchema(BaseModel):
     role_id: int
     manager_id: Optional[int] = None
     department_id: Optional[int] = None
+
+class EmployeeDeleteSchema(BaseModel):
+    id: int
+    email: EmailStr
+    first_name: str
+    last_name: str
+    cnp: str
+
+    class Config:
+        from_attributes = True
 
 class DepartmentSchema(BaseModel):
     id: int
@@ -78,11 +101,3 @@ class DepartmentSchema(BaseModel):
 class DepartmentCreateSchema(BaseModel):
     name: constr(min_length=1, max_length=100)
 
-class ManagerListSchema(BaseModel):
-    id: int
-    first_name: str
-    last_name: str
-    department_name: Optional[str] = None
-
-    class Config:
-        from_attributes = True

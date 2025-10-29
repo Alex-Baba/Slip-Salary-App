@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from app.db.models import Employee, EmployeeRole, Department
-from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema
+from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema, EmployeeDeleteSchema
 
 
 def create_employee(data: EmployeeCreateSchema) -> Employee:
@@ -56,6 +56,7 @@ def get_employee(employee_id: int) -> Employee:
     except Employee.DoesNotExist:
         raise ValidationError({"employee_id": "Employee not found"})
     return employee
+
 
 def get_all_employees() -> list[Employee]:
     """Retrieve all Employees."""
