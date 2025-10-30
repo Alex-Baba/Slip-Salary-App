@@ -4,4 +4,5 @@ pydantic==2.12.3
 djangorestframework==3.16.1
 python-dotenv==1.2.1
 pydantic[email]
+PyJWT==2.8.0
 fpdf==1.7.2

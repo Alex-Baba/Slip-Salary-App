@@ -29,6 +29,7 @@ from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
 from app.api.routers.bonus import BonusCreateView, BonusListView
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
 from app.api.routers.sendPdfToEmployees import SendPayslipEmailView
+from app.api.routers.auth import LoginView
 from app.api.routers.sendAggregatedCsvEmail import SendAggregatedCsvEmailView
 
 class RoleListView(APIView):
@@ -55,5 +56,6 @@ urlpatterns = [
     path('api/bonuses/list/', BonusListView.as_view(), name='bonus-list'),
     path('api/employees/create_pdf/', CreatePdfEmployeesView.as_view(), name='create-pdf-employees'),
     path('api/employees/send_payslip_email/', SendPayslipEmailView.as_view(), name='send-payslip-email'),
+    path('api/auth/login/', LoginView.as_view(), name='login'),
     path('api/employees/send_aggregated_csv_email/', SendAggregatedCsvEmailView.as_view(), name='send-aggregated-csv-email'),
 ]
