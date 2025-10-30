@@ -2,7 +2,13 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from app.db.models import Employee, EmployeeRole, Department
-from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema, EmployeeDeleteSchema
+from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema
+
+ROLE_BASE_SALARIES = {
+	"employee": 2500.0,
+	"manager": 4000.0,
+	"admin": 5000.0,
+}
 
 
 def create_employee(data: EmployeeCreateSchema) -> Employee:
@@ -34,6 +40,10 @@ def create_employee(data: EmployeeCreateSchema) -> Employee:
 		except Department.DoesNotExist:
 			raise ValidationError({"department_id": "Invalid department id"})
 
+	# Determine base salary and expected working days
+	base_salary = data.base_salary if data.base_salary is not None else ROLE_BASE_SALARIES.get(role.role, 0)
+	expected_working_days = data.expected_working_days if data.expected_working_days is not None else 22
+
 	try:
 			employee = Employee.objects.create(
 				email=data.email,
@@ -44,6 +54,8 @@ def create_employee(data: EmployeeCreateSchema) -> Employee:
 				role=role,
 				manager=manager,
 				department=department,
+				base_salary=base_salary,
+				expected_working_days=expected_working_days,
 			)
 	except IntegrityError as e:
 		raise ValidationError({"detail": f"Database constraint error: {str(e)}"})
@@ -73,4 +85,6 @@ def serialize_employee(employee: Employee) -> EmployeeSchema:
 		role=EmployeeRoleSchema(id=employee.role.id, role=employee.role.role),
 		manager_id=employee.manager.id if employee.manager else None,
 		department_id=employee.department.id if employee.department else None,
+		base_salary=float(employee.base_salary),
+		expected_working_days=employee.expected_working_days,
 	)

@@ -25,6 +25,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from app.api.routers.manager import ManagerListView, DepartmentManagersView
 from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
+from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
 
 
 class RoleListView(APIView):
@@ -46,4 +47,5 @@ urlpatterns = [
     path('api/attendance/upsert/', AttendanceUpsertView.as_view(), name='attendance-upsert'),
     path('api/attendance/<int:attendance_id>/update/', AttendanceUpdateView.as_view(), name='attendance-update'),
     path('api/employees/<int:employee_id>/delete/', EmployeeDeleteView.as_view(), name='employee-delete'),
+    path('api/employees/aggregate_data/', AggregateEmployeeDataView.as_view(), name='aggregate-employee-data'),
 ]

@@ -33,6 +33,8 @@ class Employee(models.Model):
     role = models.ForeignKey(EmployeeRole, on_delete=models.PROTECT)
     manager = models.ForeignKey('self', related_name='subordinates', on_delete=models.SET_NULL, null=True, blank=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    expected_working_days = models.IntegerField(null=True, blank=True, default=22, help_text="Override default business days for proration (default 22)")
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

@@ -26,6 +26,8 @@ class EmployeeSchema(BaseModel):
     role: EmployeeRoleSchema
     manager_id: Optional[int] = None
     department_id: Optional[int] = None
+    base_salary: float
+    expected_working_days: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -80,6 +82,8 @@ class EmployeeCreateSchema(BaseModel):
     role_id: int
     manager_id: Optional[int] = None
     department_id: Optional[int] = None
+    base_salary: Optional[float] = None
+    expected_working_days: Optional[int] = None
 
 class EmployeeDeleteSchema(BaseModel):
     id: int
@@ -100,4 +104,5 @@ class DepartmentSchema(BaseModel):
 
 class DepartmentCreateSchema(BaseModel):
     name: constr(min_length=1, max_length=100)
+
 
