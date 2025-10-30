@@ -28,6 +28,7 @@ from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateVie
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
 from app.api.routers.bonus import BonusCreateView, BonusListView
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
+from app.api.routers.sendPayslipEmail import SendPayslipEmailView
 
 class RoleListView(APIView):
     def get(self, request):
@@ -52,4 +53,5 @@ urlpatterns = [
     path('api/bonuses/create/', BonusCreateView.as_view(), name='bonus-create'),
     path('api/bonuses/list/', BonusListView.as_view(), name='bonus-list'),
     path('api/employees/create_pdf/', CreatePdfEmployeesView.as_view(), name='create-pdf-employees'),
+    path('api/employees/send_payslip_email/', SendPayslipEmailView.as_view(), name='send-payslip-email'),
 ]
