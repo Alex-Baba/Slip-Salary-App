@@ -5,4 +5,7 @@ djangorestframework==3.16.1
 python-dotenv==1.2.1
 pydantic[email]
 PyJWT==2.8.0
+django-cors-headers==4.9.0
 fpdf==1.7.2
+vite==1.5.2
+react==4.3.0
