@@ -28,7 +28,7 @@ from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateVie
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
 from app.api.routers.bonus import BonusCreateView, BonusListView
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
-from app.api.routers.sendPayslipEmail import SendPayslipEmailView
+from app.api.routers.sendPdfToEmployees import SendPayslipEmailView
 
 class RoleListView(APIView):
     def get(self, request):
