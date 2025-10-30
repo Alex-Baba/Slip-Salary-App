@@ -69,6 +69,33 @@ Visit http://localhost:5173 to view the login page.
 - Add employee/attendance management UI.
 - Improve styling (Tailwind or component library).
 - Add logout & refresh token flow.
+- Extend email flows (multi-employee batch sending, HTML templates).
+
+## Mailgun Email Sending
+
+If `MAILGUN_API_KEY` and `MAILGUN_DOMAIN` are set in `.env`, payslip emails will be sent via Mailgun's HTTP API instead of the Django email backend.
+
+Environment variables required:
+```
+MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+MAILGUN_DOMAIN=sandboxXXXXXX.mailgun.org   # or your verified domain
+MAILGUN_BASE_URL=https://api.mailgun.net/v3
+DEFAULT_FROM_EMAIL=payroll@yourdomain.com  # used as 'from' when available
+```
+
+Sandbox notes:
+- Mailgun sandbox domains only deliver to approved/verified recipient addresses.
+- Add your recipient email in Mailgun dashboard under Authorized Recipients.
+- The service attaches the PDF payslip as `payslip_<employee_id>.pdf`.
+
+Production domain:
+- Verify your domain DNS (TXT + MX + SPF + DKIM records) per Mailgun instructions.
+- Replace sandbox domain with your domain (e.g. `mg.yourdomain.com`).
+- Ensure `DEFAULT_FROM_EMAIL` matches a permitted sender (e.g. `payroll@yourdomain.com`).
+
+Fallback behavior:
+- If Mailgun variables are missing, the system falls back to Django's configured `EMAIL_BACKEND` (console by default for dev).
+
 
 ## Notes
 
