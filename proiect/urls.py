@@ -26,6 +26,7 @@ from rest_framework.response import Response
 from app.api.routers.manager import ManagerListView, DepartmentManagersView
 from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
+from app.api.routers.bonus import BonusCreateView, BonusListView
 
 
 class RoleListView(APIView):
@@ -48,4 +49,6 @@ urlpatterns = [
     path('api/attendance/<int:attendance_id>/update/', AttendanceUpdateView.as_view(), name='attendance-update'),
     path('api/employees/<int:employee_id>/delete/', EmployeeDeleteView.as_view(), name='employee-delete'),
     path('api/employees/aggregate_data/', AggregateEmployeeDataView.as_view(), name='aggregate-employee-data'),
+    path('api/bonuses/create/', BonusCreateView.as_view(), name='bonus-create'),
+    path('api/bonuses/list/', BonusListView.as_view(), name='bonus-list'),
 ]

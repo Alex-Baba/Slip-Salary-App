@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.exceptions import ValidationError
 from pydantic import ValidationError as PydanticValidationError
-from app.api.schemas import EmployeeCreateSchema
+from app.api.schemas import EmployeeCreateSchema, EmployeeListSchema
 from app.services.employee_service import create_employee, serialize_employee, get_all_employees, get_employee
 
 
@@ -26,7 +26,20 @@ class EmployeeCreateView(APIView):
 class EmployeeListView(APIView):
     def get(self, request):
         employees = get_all_employees()
-        serialized_employees = [serialize_employee(emp).dict() for emp in employees]
+        # Use serialize_employee then strip fields, or rebuild with EmployeeListSchema
+        serialized_employees = []
+        for emp in employees:
+            ser = serialize_employee(emp)
+            list_obj = EmployeeListSchema(
+                id=ser.id,
+                email=ser.email,
+                first_name=ser.first_name,
+                last_name=ser.last_name,
+                role=ser.role,
+                manager_id=ser.manager_id,
+                department_id=ser.department_id,
+            )
+            serialized_employees.append(list_obj.dict())
         return Response(serialized_employees, status=status.HTTP_200_OK)
 
 class EmployeeDeleteView(APIView):
