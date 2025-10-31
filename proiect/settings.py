@@ -48,6 +48,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'app.middleware.request_logging.RequestLoggingMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -158,4 +159,29 @@ CORS_ALLOW_HEADERS = list({
     'user-agent',
     'x-csrftoken',
 })
+
+
+# Basic logging configuration for request logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'request': {
+            'handlers': ['console'],
+            'level': os.environ.get('REQUEST_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}
 
