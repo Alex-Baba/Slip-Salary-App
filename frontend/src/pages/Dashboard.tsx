@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, upsertAttendance as apiUpsertAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf } from '../api/client';
+import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, upsertAttendance as apiUpsertAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth } from '../api/client';
 
 interface BonusFormState {
   employee_id: string;
@@ -35,6 +35,8 @@ const Dashboard: React.FC = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deptManagersDeptId, setDeptManagersDeptId] = useState('');
   const [departmentCreateName, setDepartmentCreateName] = useState('');
+  const [employeesData, setEmployeesData] = useState<any[]>([]);
+  const [pingResult, setPingResult] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -171,6 +173,8 @@ const Dashboard: React.FC = () => {
   async function fetchDepartments() { try { const data = await listDepartments(); setDepartmentsData(data); setActionMsg('Departments loaded'); } catch { setActionMsg('Error loading departments'); } }
   async function createDepartment() { if (!departmentCreateName) return; try { await apiCreateDepartment(departmentCreateName); setDepartmentCreateName(''); fetchDepartments(); setActionMsg('Department created'); } catch { setActionMsg('Error creating department'); } }
   async function fetchManagers() { try { const data = await listManagers(); setManagersData(data); setActionMsg('Managers loaded'); } catch { setActionMsg('Error loading managers'); } }
+  async function fetchAllEmployees() { try { const data = await listAllEmployees(); setEmployeesData(data); setActionMsg(`Loaded ${data.length} employees`); } catch (e:any) { setActionMsg(`Error: ${e.message}`); } }
+  async function pingApi() { setActionMsg(null); setPingResult(null); try { const data = await pingHealth(); setPingResult(JSON.stringify(data)); setActionMsg('API reachable'); } catch (e:any) { setActionMsg(`Error: ${e.message}`); setPingResult(null); } }
   async function fetchDepartmentManagers() { if (!deptManagersDeptId) return; try { const data = await listDepartmentManagers(Number(deptManagersDeptId)); setManagersData(data); setActionMsg('Dept managers loaded'); } catch { setActionMsg('Error loading dept managers'); } }
   async function fetchAttendance() { const year = Number(periodYear); const month = Number(periodMonth); try { const data = await listAttendance(year, month); setAttendanceData(data); setActionMsg('Attendance loaded'); } catch { setActionMsg('Error loading attendance'); } }
   async function upsertAttendance() { if (!targetEmployeeId) return; const year = Number(periodYear); const month = Number(periodMonth); try { const data = await apiUpsertAttendance(Number(targetEmployeeId), 20, 2, year, month); setActionMsg(`Attendance upserted id ${data.id}`); fetchAttendance(); } catch { setActionMsg('Error upserting attendance'); } }
@@ -230,6 +234,7 @@ const Dashboard: React.FC = () => {
                 <button style={btnAdminAction} disabled={!targetManagerId} onClick={() => targetManagerId && handleSendManagerCsv(Number(targetManagerId))}>Send Team CSV</button>
                 <button style={btnAdminAction} disabled={!targetEmployeeId || pdfLoading} onClick={downloadPdf}>{pdfLoading ? 'Downloading…' : 'Download Payslip PDF'}</button>
                 <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={fetchAggregate}>Load Aggregate Data</button>
+                <button style={btnAdminAction} onClick={pingApi}>Ping API</button>
               </div>
             </section>
             <section style={adminSectionStyle}>
@@ -237,6 +242,7 @@ const Dashboard: React.FC = () => {
               <div style={sectionGridStyle}>
                 <button style={btnAdminAction} onClick={fetchRoles}>List Roles</button>
                 <button style={btnAdminAction} onClick={fetchDepartments}>List Departments</button>
+                <button style={btnAdminAction} onClick={fetchAllEmployees}>List All Employees</button>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input placeholder="New Dept Name" value={departmentCreateName} onChange={e => setDepartmentCreateName(e.target.value)} style={adminInputStyle} />
                   <button style={btnAdminAction} disabled={!departmentCreateName} onClick={createDepartment}>Create Dept</button>
@@ -329,6 +335,35 @@ const Dashboard: React.FC = () => {
           {rolesData.length > 0 && <div><h4>Roles</h4><pre style={preStyle}>{JSON.stringify(rolesData, null, 2)}</pre></div>}
           {departmentsData.length > 0 && <div><h4>Departments</h4><pre style={preStyle}>{JSON.stringify(departmentsData, null, 2)}</pre></div>}
           {managersData.length > 0 && <div><h4>Managers / Dept Managers</h4><pre style={preStyle}>{JSON.stringify(managersData, null, 2)}</pre></div>}
+          {employeesData.length > 0 && (
+            <div>
+              <h4>Employees</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>ID</th>
+                    <th style={thStyle}>Email</th>
+                    <th style={thStyle}>Name</th>
+                    <th style={thStyle}>Role</th>
+                    <th style={thStyle}>Dept</th>
+                    <th style={thStyle}>Manager</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeesData.map((e: any) => (
+                    <tr key={e.id}>
+                      <td style={tdStyle}>{e.id}</td>
+                      <td style={tdStyle}>{e.email}</td>
+                      <td style={tdStyle}>{e.first_name} {e.last_name}</td>
+                      <td style={tdStyle}>{e.role?.role || e.role}</td>
+                      <td style={tdStyle}>{e.department_id || '-'}</td>
+                      <td style={tdStyle}>{e.manager_id || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {attendanceData.length > 0 && <div><h4>Attendance ({periodYear}-{periodMonth})</h4><pre style={preStyle}>{JSON.stringify(attendanceData, null, 2)}</pre></div>}
           {aggregateData && <div><h4>Aggregate Data</h4><pre style={preStyle}>{JSON.stringify(aggregateData, null, 2)}</pre></div>}
         </div>

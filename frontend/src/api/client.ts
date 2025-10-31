@@ -26,6 +26,15 @@ declare global {
 }
 const API_BASE: string = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000';
 
+async function safeFetch(url: string, opts: RequestInit = {}) {
+  try {
+    return await fetch(url, opts);
+  } catch (err: any) {
+    // More descriptive network error
+    throw new Error(`Network error contacting ${url}: ${err.message || err}`);
+  }
+}
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/api/auth/login/`, {
     method: 'POST',
@@ -61,10 +70,15 @@ async function postEndpoint(path: string, body: any): Promise<any> {
     'Idempotency-Key': body?.idempotencyKey || crypto.randomUUID(),
     ...authHeaders()
   };
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await safeFetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  } catch (err) {
+    throw err;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = data.error || data.model_errors ? JSON.stringify(data.model_errors || data.error) : 'Request failed';
+    const msg = data.error || data.model_errors ? JSON.stringify(data.model_errors || data.error) : `Request failed (${res.status})`;
     throw new Error(msg);
   }
   return data;
@@ -129,14 +143,16 @@ export async function createEmployee(payload: EmployeeCreatePayload) {
 
 // Listing & auxiliary endpoints for admin dashboard
 export async function listRoles() {
-  const res = await fetch(`${API_BASE}/api/roles/`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load roles');
+  const url = `${API_BASE}/api/roles/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load roles (${res.status})`);
   return res.json();
 }
 
 export async function listDepartments() {
-  const res = await fetch(`${API_BASE}/api/departments/list/`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load departments');
+  const url = `${API_BASE}/api/departments/list/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load departments (${res.status})`);
   return res.json();
 }
 
@@ -150,20 +166,30 @@ export async function createDepartment(name: string) {
 }
 
 export async function listManagers() {
-  const res = await fetch(`${API_BASE}/api/managers/`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load managers');
+  const url = `${API_BASE}/api/managers/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load managers (${res.status})`);
   return res.json();
 }
 
 export async function listDepartmentManagers(departmentId: number) {
-  const res = await fetch(`${API_BASE}/api/departments/${departmentId}/managers/`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load department managers');
+  const url = `${API_BASE}/api/departments/${departmentId}/managers/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load department managers (${res.status})`);
   return res.json();
 }
 
 export async function listAttendance(year: number, month: number) {
-  const res = await fetch(`${API_BASE}/api/attendance/?year=${year}&month=${month}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load attendance');
+  const url = `${API_BASE}/api/attendance/?year=${year}&month=${month}`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load attendance (${res.status})`);
+  return res.json();
+}
+
+export async function listAllEmployees() {
+  const url = `${API_BASE}/api/employees_all/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load employees (${res.status})`);
   return res.json();
 }
 
@@ -194,7 +220,15 @@ export async function aggregateEmployee(employeeId: number, year: number, month:
 }
 
 export async function downloadEmployeePdf(employeeId: number): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/api/employees/create_pdf/?employee_id=${employeeId}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch PDF');
+  const url = `${API_BASE}/api/employees/create_pdf/?employee_id=${employeeId}`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to fetch PDF (${res.status})`);
   return res.blob();
+}
+
+export async function pingHealth() {
+  const url = `${API_BASE}/api/health/`;
+  const res = await safeFetch(url);
+  if (!res.ok) throw new Error(`Health check failed (${res.status})`);
+  return res.json().catch(() => ({}));
 }

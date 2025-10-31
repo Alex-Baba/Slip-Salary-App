@@ -158,6 +158,7 @@ CORS_ALLOW_HEADERS = list({
     'origin',
     'user-agent',
     'x-csrftoken',
+    'idempotency-key',  # allow client-side Idempotency header used by the frontend
 })
 
 
