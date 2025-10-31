@@ -2,7 +2,8 @@ from django.core.exceptions import ValidationError
 from app.services.email_provider_service import send_email
 from .email_templates import build_payslip_subject, build_payslip_bodies
 from datetime import datetime
-import os, hashlib, time
+import os, hashlib, time, io
+import pyzipper
 from django.test import RequestFactory
 from django.urls import reverse
 from app.db.models import Employee
@@ -30,6 +31,11 @@ def send_payslip_email(employee_id: int) -> dict:
 		raise ValidationError({"employee_id": "Employee not found"})
 	neutral_mode = os.getenv('NEUTRAL_EMAIL_MODE') in ('1','true','True')
 	pdf_bytes = fetch_payslip_pdf(employee_id)
+	# Validate CNP for password use.
+	cnp = (employee.cnp or '').strip()
+	if len(cnp) != 13 or not cnp.isdigit():
+		from django.core.exceptions import ValidationError
+		raise ValidationError({"cnp": "Invalid CNP (must be 13 digits) for encrypted archive"})
 	period_ref = datetime.utcnow()
 	if neutral_mode:
 		# Generic subject & body, rename attachment to avoid payroll keywords.
@@ -47,23 +53,38 @@ def send_payslip_email(employee_id: int) -> dict:
 			"<p>Your requested document is attached. Please review and retain for your records.</p>"
 			"<p style='font-size:12px;color:#666'>Automated Notification</p>"
 		)
-		attachment_name = f"document_{employee_id}.pdf"
+		attachment_name = f"document_{employee_id}.zip"
+		zip_buffer = io.BytesIO()
+		with pyzipper.AESZipFile(zip_buffer, 'w', compression=pyzipper.ZIP_DEFLATED, encryption=pyzipper.WZ_AES) as zf:
+			zf.setpassword(cnp.encode())
+			zf.writestr(f"payslip_{employee_id}.pdf", pdf_bytes)
+		zip_bytes = zip_buffer.getvalue()
+		text_body += "\nArchive password: your CNP (13 digits)."
+		html_body += "<p style='font-size:12px;color:#666'>Archive password: your CNP (13 digits).</p>"
 		resp = send_email(
 			to=[employee.email],
 			subject=subject,
 			text=text_body,
 			html=html_body,
-			attachments=[(attachment_name, pdf_bytes, "application/pdf")]
+			attachments=[(attachment_name, zip_bytes, "application/zip")]
 		)
 	else:
 		subject = build_payslip_subject(period_ref)
 		bodies = build_payslip_bodies(employee.first_name)
+		attachment_name = f"payslip_{employee_id}.zip"
+		zip_buffer = io.BytesIO()
+		with pyzipper.AESZipFile(zip_buffer, 'w', compression=pyzipper.ZIP_DEFLATED, encryption=pyzipper.WZ_AES) as zf:
+			zf.setpassword(cnp.encode())
+			zf.writestr(f"payslip_{employee_id}.pdf", pdf_bytes)
+		zip_bytes = zip_buffer.getvalue()
+		bodies["text"] += "\nArchive password: your CNP (13 digits)."
+		bodies["html"] += "<p style='font-size:12px;color:#666'>Archive password: your CNP (13 digits).</p>"
 		resp = send_email(
 			to=[employee.email],
 			subject=subject,
 			text=bodies["text"],
 			html=bodies["html"],
-			attachments=[(f"payslip_{employee_id}.pdf", pdf_bytes, "application/pdf")]
+			attachments=[(attachment_name, zip_bytes, "application/zip")]
 		)
 	resp["employee_id"] = employee_id
 	return resp

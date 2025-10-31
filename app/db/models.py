@@ -29,7 +29,8 @@ class Employee(models.Model):
     password = models.CharField(max_length=256)
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
-    cnp = models.CharField(max_length=1000, unique=True)
+    # Romanian CNP: 13 digits. We enforce length & digits only (no checksum for now).
+    cnp = models.CharField(max_length=13, unique=True)
     role = models.ForeignKey(EmployeeRole, on_delete=models.PROTECT)
     manager = models.ForeignKey('self', related_name='subordinates', on_delete=models.SET_NULL, null=True, blank=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
