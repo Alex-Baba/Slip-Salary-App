@@ -1,5 +1,7 @@
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMessage
+from app.services.email_provider_service import send_email
+from .email_templates import build_aggregate_subject, build_aggregate_bodies
+from datetime import datetime
 from django.test import RequestFactory
 from django.urls import reverse
 from io import StringIO
@@ -59,21 +61,25 @@ def generate_employee_csv(aggregated: dict) -> bytes:
 	return output.getvalue().encode('utf-8')
 
 def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: int | None = None) -> dict:
-	"""Fetch aggregated data, build CSV, and email it to the employee."""
+	"""Fetch aggregated data, build CSV, and email via provider chain."""
 	aggregated = fetch_aggregated_employee_data(employee_id, year, month)
 	try:
 		employee = Employee.objects.get(id=employee_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"employee_id": "Employee not found"})
 	csv_bytes = generate_employee_csv(aggregated)
-	subject = "Aggregated Employee Data"
-	body = (
-		f"Hello {employee.first_name},\n\nAttached is your aggregated data report."
-		"\n\nRegards, Payroll"
+	period_ref = datetime.utcnow()
+	subject = build_aggregate_subject(period_ref)
+	bodies = build_aggregate_bodies(employee.first_name, aggregated.get('bonuses', []))
+	resp = send_email(
+		to=[employee.email],
+		subject=subject,
+		text=bodies["text"],
+		html=bodies["html"],
+		attachments=[(f"employee_{employee_id}_aggregate.csv", csv_bytes, "text/csv")]
 	)
-	email = EmailMessage(subject=subject, body=body, to=[employee.email])
-	email.attach(filename=f"employee_{employee_id}_aggregate.csv", content=csv_bytes, mimetype="text/csv")
-	sent = email.send(fail_silently=False)
-	return {"sent": bool(sent), "employee_id": employee_id, "rows": 2}
+	resp["employee_id"] = employee_id
+	resp["rows"] = 2
+	return resp
 
 __all__ = ["fetch_aggregated_employee_data", "generate_employee_csv", "send_aggregated_csv_email"]

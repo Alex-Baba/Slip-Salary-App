@@ -71,30 +71,35 @@ Visit http://localhost:5173 to view the login page.
 - Add logout & refresh token flow.
 - Extend email flows (multi-employee batch sending, HTML templates).
 
-## Mailgun Email Sending
+## Email Sending (SendGrid Priority)
 
-If `MAILGUN_API_KEY` and `MAILGUN_DOMAIN` are set in `.env`, payslip emails will be sent via Mailgun's HTTP API instead of the Django email backend.
+Email provider priority chain: SendGrid > Django SMTP backend.
 
-Environment variables required:
+If `SENDGRID_API_KEY` is set, emails (payslip PDFs and aggregated CSV reports) are sent via SendGrid. If absent or SendGrid fails, we fall back to Django's configured SMTP backend.
+
+Environment variables:
 ```
-MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-MAILGUN_DOMAIN=sandboxXXXXXX.mailgun.org   # or your verified domain
-MAILGUN_BASE_URL=https://api.mailgun.net/v3
-DEFAULT_FROM_EMAIL=payroll@yourdomain.com  # used as 'from' when available
+SENDGRID_API_KEY=SG.xxxxxx_actual_api_key
+SENDGRID_FROM_EMAIL=payroll@yourdomain.com
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.yourprovider.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your_smtp_user
+EMAIL_HOST_PASSWORD=your_smtp_password_or_app_password
+EMAIL_USE_TLS=1
+DEFAULT_FROM_EMAIL=payroll@yourdomain.com
 ```
 
-Sandbox notes:
-- Mailgun sandbox domains only deliver to approved/verified recipient addresses.
-- Add your recipient email in Mailgun dashboard under Authorized Recipients.
-- The service attaches the PDF payslip as `payslip_<employee_id>.pdf`.
-
-Production domain:
-- Verify your domain DNS (TXT + MX + SPF + DKIM records) per Mailgun instructions.
-- Replace sandbox domain with your domain (e.g. `mg.yourdomain.com`).
-- Ensure `DEFAULT_FROM_EMAIL` matches a permitted sender (e.g. `payroll@yourdomain.com`).
+Setup notes:
+- For Gmail, use an App Password (2FA required) for `EMAIL_HOST_PASSWORD`.
+- For higher deliverability, set SPF/DKIM records on your domain (SendGrid documentation provides DNS entries).
+- Attachments are sent as standard MIME attachments (PDF for payslips, CSV for aggregated data).
 
 Fallback behavior:
-- If Mailgun variables are missing, the system falls back to Django's configured `EMAIL_BACKEND` (console by default for dev).
+- If SendGrid is not configured or returns a non-success status, the system automatically attempts Django SMTP.
+
+Extensibility:
+- The provider abstraction (`email_provider_service.py`) allows adding more providers later with minimal changes.
 
 
 ## Notes
