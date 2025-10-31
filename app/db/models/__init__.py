@@ -1,11 +1,15 @@
-"""Backward-compatible imports for models split into per-file modules.
+from django.utils import timezone
 
-This file re-exports model classes from the `app.db.models` package so existing
-imports like `from app.db.models import Employee` continue to work after
-refactoring the models into separate files.
-"""
 
-# Re-export symbols from split modules
+def current_year():
+    return timezone.now().year
+
+
+def current_month():
+    return timezone.now().month
+
+
+# Re-export model classes from module files
 from .employee import Employee
 from .employee_role import EmployeeRole
 from .department import Department
@@ -15,7 +19,6 @@ from .bonus import Bonus
 from .idempotency import IdempotencyRecord
 
 __all__ = [
+    'current_year', 'current_month',
     'Employee', 'EmployeeRole', 'Department', 'Salary', 'Attendance', 'Bonus', 'IdempotencyRecord'
 ]
-
-
