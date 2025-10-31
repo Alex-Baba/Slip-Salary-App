@@ -6,15 +6,28 @@ from django.core.exceptions import ValidationError
 from pydantic import ValidationError as PydanticValidationError
 
 from app.services.bonus_service import create_bonus
+from app.services.auth_utils import get_current_employee, employee_is_manager, employee_is_admin, can_manage_employee
 from app.api.schemas import BonusCreateSchema, BonusSchema
 
 class BonusCreateView(APIView):
     def post(self, request):
         try:
+            actor = get_current_employee(request)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
             payload = BonusCreateSchema(**request.data)
         except PydanticValidationError as e:
             return Response({"pydantic_errors": e.errors()}, status=status.HTTP_400_BAD_REQUEST)
 
+        # RBAC: admin can create for any; manager only within same department; employee only self (rare case)
+        from app.db.models import Employee
+        try:
+            target = Employee.objects.get(id=payload.employee_id)
+        except Employee.DoesNotExist:
+            return Response({"model_errors": {"employee_id": "Target employee not found"}}, status=status.HTTP_404_NOT_FOUND)
+        if not can_manage_employee(actor, target):
+            return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
         try:
             bonus = create_bonus(payload)
         except ValidationError as e:
@@ -24,12 +37,32 @@ class BonusCreateView(APIView):
 
 class BonusListView(APIView):
     def get(self, request):
-        from app.db.models import Bonus  # lightweight import here
+        try:
+            actor = get_current_employee(request)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        from app.db.models import Bonus, Employee  # lightweight import here
         employee_id = request.query_params.get('employee_id')
-        qs = Bonus.objects.all().order_by('-date')
+        # RBAC: admin sees all; manager sees department; employee sees own.
+        if employee_is_admin(actor):
+            qs = Bonus.objects.all()
+        elif employee_is_manager(actor):
+            dept_id = actor.department_id
+            qs = Bonus.objects.filter(employee__department_id=dept_id)
+        else:
+            qs = Bonus.objects.filter(employee_id=actor.id)
+        qs = qs.order_by('-date')
         if employee_id:
             try:
-                qs = qs.filter(employee_id=int(employee_id))
+                eid = int(employee_id)
+                # Ensure actor has permission to view target employee bonuses
+                try:
+                    target = Employee.objects.get(id=eid)
+                except Employee.DoesNotExist:
+                    return Response({"query_errors": {"employee_id": "Employee not found"}}, status=status.HTTP_404_NOT_FOUND)
+                if not can_manage_employee(actor, target):
+                    return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+                qs = qs.filter(employee_id=eid)
             except ValueError:
                 return Response({"query_errors": {"employee_id": "Must be integer"}}, status=status.HTTP_400_BAD_REQUEST)
         serialized = [BonusSchema.from_model(b).dict() for b in qs]

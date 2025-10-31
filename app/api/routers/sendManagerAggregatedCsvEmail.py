@@ -4,9 +4,17 @@ from rest_framework import status
 from django.core.exceptions import ValidationError
 from app.services.sendAggregatedEmployeeData_service import send_manager_aggregated_csv_email
 from app.services.idempotency_service import get_or_create_idempotent
+from app.services.auth_utils import get_current_employee, employee_is_manager, employee_is_admin
 
 class SendManagerAggregatedCsvEmailView(APIView):
 	def post(self, request):
+		# Only managers can call this endpoint (regardless of target manager_id)
+		try:
+			caller = get_current_employee(request)
+		except Exception as e:
+			return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+		if not (employee_is_manager(caller) or employee_is_admin(caller)):
+			return Response({"error": "Manager or Admin privileges required"}, status=status.HTTP_403_FORBIDDEN)
 		manager_id = request.data.get('manager_id') or request.query_params.get('manager_id')
 		if manager_id is None:
 			return Response({"errors": {"manager_id": "Provide manager_id"}}, status=status.HTTP_400_BAD_REQUEST)

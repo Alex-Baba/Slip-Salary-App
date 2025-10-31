@@ -4,9 +4,15 @@ from rest_framework import status
 from django.core.exceptions import ValidationError
 from app.services.sendPdfForEmployees_service import send_payslip_email
 from app.services.idempotency_service import get_or_create_idempotent
+from app.services.auth_utils import get_current_employee, employee_is_manager, employee_is_admin, can_manage_employee
 
 class SendPayslipEmailView(APIView):
     def post(self, request):
+        # Auth: allow employee to fetch own payslip; manager can fetch any.
+        try:
+            current = get_current_employee(request)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
         employee_id = request.data.get('employee_id') or request.query_params.get('employee_id')
         if employee_id is None:
             return Response({"errors": {"employee_id": "Provide employee_id"}}, status=status.HTTP_400_BAD_REQUEST)
@@ -33,6 +39,15 @@ class SendPayslipEmailView(APIView):
                 return Response(idem_result, status=status.HTTP_409_CONFLICT)
             return Response(idem_result['data'] | {"idempotent": idem_result['idempotent'], "cached": idem_result['cached']}, status=status.HTTP_200_OK)
         else:
+            # Authorization: if not manager and requesting someone else -> forbidden
+            if employee_id_int != current.id:
+                from app.db.models import Employee
+                try:
+                    target = Employee.objects.get(id=employee_id_int)
+                except Employee.DoesNotExist:
+                    return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+                if not can_manage_employee(current, target):
+                    return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
             try:
                 result = send_payslip_email(employee_id_int)
             except ValidationError as e:
