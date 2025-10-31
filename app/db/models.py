@@ -75,3 +75,28 @@ class Bonus(models.Model):
     def __str__(self):
         return f"Bonus {self.employee_id} {self.amount}"
 
+
+class IdempotencyRecord(models.Model):
+    """Stores idempotent request outcomes keyed by client-provided Idempotency-Key.
+
+    endpoint: canonical path or logical name (e.g. 'send-payslip')
+    key: user-supplied idempotency key header value
+    request_hash: hash of normalized request payload (avoid returning different responses for same key+different body)
+    response_json: saved serialized response dict
+    created_at: timestamp
+    last_accessed: updated when reused
+    """
+    endpoint = models.CharField(max_length=100)
+    key = models.CharField(max_length=200)
+    request_hash = models.CharField(max_length=64)
+    response_json = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_accessed = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("endpoint", "key")
+
+    def __str__(self):
+        return f"Idem {self.endpoint}:{self.key}"
+
+
