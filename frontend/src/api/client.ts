@@ -3,7 +3,28 @@ export interface LoginResponse {
   user_id: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+export interface MeResponse {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string | null;
+  department: string | null;
+  permissions: string[];
+  subordinates?: { id: number; first_name: string; last_name: string; department?: string | null }[];
+  subordinates_count?: number;
+}
+
+declare global {
+  // Vite exposes import.meta.env; provide minimal typing.
+  interface ImportMetaEnv {
+    VITE_API_BASE?: string;
+  }
+  interface ImportMeta {
+    env: ImportMetaEnv;
+  }
+}
+const API_BASE: string = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000';
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/api/auth/login/`, {
@@ -17,4 +38,163 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new Error(msg);
   }
   return res.json();
+}
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function fetchMe(): Promise<MeResponse> {
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
+  const res = await fetch(`${API_BASE}/api/auth/me/`, { headers });
+  if (!res.ok) {
+    throw new Error('Failed to load profile');
+  }
+  return res.json();
+}
+
+// Endpoint helpers (POST for actions) - all wrapped with auth & simple status handling.
+async function postEndpoint(path: string, body: any): Promise<any> {
+  const headers: Record<string,string> = {
+    'Content-Type': 'application/json',
+    'Idempotency-Key': body?.idempotencyKey || crypto.randomUUID(),
+    ...authHeaders()
+  };
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.error || data.model_errors ? JSON.stringify(data.model_errors || data.error) : 'Request failed';
+    throw new Error(msg);
+  }
+  return data;
+}
+
+export async function sendPayslip(employeeId: number) {
+  return postEndpoint('/api/employees/send_payslip_email/', { employee_id: employeeId });
+}
+
+export async function sendAggregatedCsv(employeeId: number, year: number, month: number) {
+  return postEndpoint('/api/employees/send_aggregated_csv_email/', { employee_id: employeeId, year, month });
+}
+
+export async function sendManagerAggregatedCsv(managerId: number, year: number, month: number) {
+  return postEndpoint('/api/employees/send_manager_aggregated_csv_email/', { manager_id: managerId, year, month });
+}
+
+export interface BonusCreatePayload {
+  employee_id: number;
+  amount: number;
+  description: string;
+  date?: string; // ISO optional
+}
+
+export async function createBonus(payload: BonusCreatePayload) {
+  return postEndpoint('/api/bonuses/create/', payload);
+}
+
+export async function listBonuses(employeeId?: number) {
+  const query = employeeId ? `?employee_id=${employeeId}` : '';
+  const headers: Record<string,string> = { ...authHeaders() };
+  const res = await fetch(`${API_BASE}/api/bonuses/list/${query}`, { headers });
+  if (!res.ok) {
+    throw new Error('Failed to load bonuses');
+  }
+  return res.json();
+}
+
+export interface EmployeeCreatePayload {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  cnp: string;
+  role_id: number;
+  manager_id?: number | null;
+  department_id?: number | null;
+  base_salary?: number;
+  expected_working_days?: number;
+}
+
+export async function createEmployee(payload: EmployeeCreatePayload) {
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
+  const res = await fetch(`${API_BASE}/api/employees/`, { method: 'POST', headers, body: JSON.stringify(payload) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to create employee';
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// Listing & auxiliary endpoints for admin dashboard
+export async function listRoles() {
+  const res = await fetch(`${API_BASE}/api/roles/`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load roles');
+  return res.json();
+}
+
+export async function listDepartments() {
+  const res = await fetch(`${API_BASE}/api/departments/list/`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load departments');
+  return res.json();
+}
+
+export async function createDepartment(name: string) {
+  const res = await fetch(`${API_BASE}/api/departments/create/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ name })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to create department');
+  return data;
+}
+
+export async function listManagers() {
+  const res = await fetch(`${API_BASE}/api/managers/`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load managers');
+  return res.json();
+}
+
+export async function listDepartmentManagers(departmentId: number) {
+  const res = await fetch(`${API_BASE}/api/departments/${departmentId}/managers/`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load department managers');
+  return res.json();
+}
+
+export async function listAttendance(year: number, month: number) {
+  const res = await fetch(`${API_BASE}/api/attendance/?year=${year}&month=${month}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load attendance');
+  return res.json();
+}
+
+export async function upsertAttendance(employeeId: number, working_days: number, leave_days: number, year: number, month: number) {
+  return postEndpoint('/api/attendance/upsert/', { employee_id: employeeId, working_days, leave_days, year, month });
+}
+
+export async function updateAttendance(attendanceId: number, patch: { working_days?: number; leave_days?: number }) {
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
+  const res = await fetch(`${API_BASE}/api/attendance/${attendanceId}/update/`, { method: 'PATCH', headers, body: JSON.stringify(patch) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to update attendance');
+  return data;
+}
+
+export async function deleteEmployee(employeeId: number) {
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/delete/`, { method: 'DELETE', headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to delete employee');
+  return data;
+}
+
+export async function aggregateEmployee(employeeId: number, year: number, month: number) {
+  const res = await fetch(`${API_BASE}/api/employees/aggregate_data/?employee_id=${employeeId}&year=${year}&month=${month}`, { headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to load aggregate');
+  return data;
+}
+
+export async function downloadEmployeePdf(employeeId: number): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/api/employees/create_pdf/?employee_id=${employeeId}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch PDF');
+  return res.blob();
 }

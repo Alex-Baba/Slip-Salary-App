@@ -16,8 +16,11 @@ RUN pip install --upgrade pip \
 # Copy project files
 COPY . /code/
 
+# Ensure entrypoint script is executable
+RUN chmod +x /code/docker-entrypoint.sh
+
 # Expose port
 EXPOSE 8000
 
 # Default command
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/code/docker-entrypoint.sh"]

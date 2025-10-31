@@ -7,6 +7,5 @@ pydantic[email]
 PyJWT==2.8.0
 django-cors-headers==4.9.0
 fpdf==1.7.2
-requests==2.32.3
 sendgrid==6.12.5
 pyzipper==0.3.6

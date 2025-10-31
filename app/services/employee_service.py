@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from app.db.models import Employee, EmployeeRole, Department
-from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema
+from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema, EmployeeUpdateSchema
 
 ROLE_BASE_SALARIES = {
 	"employee": 2500.0,
@@ -88,3 +88,49 @@ def serialize_employee(employee: Employee) -> EmployeeSchema:
 		base_salary=float(employee.base_salary),
 		expected_working_days=employee.expected_working_days,
 	)
+
+def update_employee(employee_id: int, data: EmployeeUpdateSchema) -> Employee:
+	"""Partial update employee fields; password re-hashed if provided."""
+	employee = get_employee(employee_id)
+	changed = False
+	if data.first_name is not None:
+		employee.first_name = data.first_name; changed = True
+	if data.last_name is not None:
+		employee.last_name = data.last_name; changed = True
+	if data.role_id is not None:
+		from app.db.models import EmployeeRole
+		try:
+			role = EmployeeRole.objects.get(id=data.role_id)
+		except EmployeeRole.DoesNotExist:
+			raise ValidationError({"role_id": "Invalid role id"})
+		employee.role = role; changed = True
+	if data.manager_id is not None:
+		if data.manager_id == 0:
+			employee.manager = None; changed = True
+		else:
+			try:
+				mgr = Employee.objects.get(id=data.manager_id)
+			except Employee.DoesNotExist:
+				raise ValidationError({"manager_id": "Invalid manager id"})
+			employee.manager = mgr; changed = True
+	if data.department_id is not None:
+		if data.department_id == 0:
+			employee.department = None; changed = True
+		else:
+			from app.db.models import Department
+			try:
+				dep = Department.objects.get(id=data.department_id)
+			except Department.DoesNotExist:
+				raise ValidationError({"department_id": "Invalid department id"})
+			employee.department = dep; changed = True
+	if data.base_salary is not None:
+		employee.base_salary = data.base_salary; changed = True
+	if data.expected_working_days is not None:
+		employee.expected_working_days = data.expected_working_days; changed = True
+	if data.password is not None:
+		employee.password = make_password(data.password); changed = True
+	if changed:
+		employee.save()
+	return employee
+
+__all__ = [name for name in (__name__,)]

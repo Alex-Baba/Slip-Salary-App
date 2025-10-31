@@ -147,4 +147,34 @@ class DepartmentSchema(BaseModel):
 class DepartmentCreateSchema(BaseModel):
     name: constr(min_length=1, max_length=100)
 
+class DepartmentUpdateSchema(BaseModel):
+    name: Optional[constr(min_length=1, max_length=100)] = None
+
+class EmployeeUpdateSchema(BaseModel):
+    first_name: Optional[constr(min_length=1, max_length=30)] = None
+    last_name: Optional[constr(min_length=1, max_length=30)] = None
+    role_id: Optional[int] = None
+    manager_id: Optional[int] = None
+    department_id: Optional[int] = None
+    base_salary: Optional[float] = None
+    expected_working_days: Optional[int] = None
+    password: Optional[constr(min_length=8)] = None
+
+class BonusUpdateSchema(BaseModel):
+    amount: Optional[float] = None
+    description: Optional[constr(min_length=1, max_length=255)] = None
+    date: Optional[str] = None
+
+    def to_date(self):
+        from datetime import date as _date
+        if not self.date:
+            return None
+        try:
+            parts = [int(p) for p in self.date.split('-')]
+            if len(parts) != 3:
+                raise ValueError
+            return _date(parts[0], parts[1], parts[2])
+        except Exception:
+            raise ValueError("Invalid date format, expected YYYY-MM-DD")
+
 
