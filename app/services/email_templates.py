@@ -25,14 +25,13 @@ def build_payslip_subject(period: datetime) -> str:
 def build_payslip_bodies(employee_first: str) -> Dict[str, str]:
     text = (
         f"Hello {employee_first},\n\n"
-        "Your payslip for this month is attached as a PDF. "
-        "It includes gross salary, adjustments, and bonus details where applicable.\n\n"
+        "Your payslip for this month is attached as a PDF. It includes gross salary, adjustments, and bonus details where applicable.\n\n"
         "Please review and contact Payroll if you notice any discrepancies." + FOOTER_TEXT
     )
     html = (
-        f"<p>Hi {employee_first},</p>"
-        "<p>Your monthly payslip is attached as a PDF. It includes gross salary, adjustments, and any bonuses.</p>"
-        "<p>Please review and contact <a href='mailto:payroll@company.example'>Payroll</a> if something looks incorrect.</p>"
+        f"<p>Hello {employee_first},</p>"
+        "<p>Your payslip for this month is attached as a PDF. It includes gross salary, adjustments, and bonus details where applicable.</p>"
+        "<p>Please review and contact <a href='mailto:payroll@company.example'>Payroll</a> if you notice any discrepancies.</p>"
         f"{FOOTER_HTML}"
     )
     return {"text": text, "html": html}
