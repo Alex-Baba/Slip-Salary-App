@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, upsertAttendance as apiUpsertAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth } from '../api/client';
+import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth } from '../api/client';
 
 interface BonusFormState {
   employee_id: string;
@@ -31,6 +31,8 @@ const Dashboard: React.FC = () => {
   const [departmentsData, setDepartmentsData] = useState<any[]>([]);
   const [managersData, setManagersData] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [attendanceWorking, setAttendanceWorking] = useState<string>('');
+  const [attendanceLeave, setAttendanceLeave] = useState<string>('');
   const [aggregateData, setAggregateData] = useState<any | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deptManagersDeptId, setDeptManagersDeptId] = useState('');
@@ -177,8 +179,25 @@ const Dashboard: React.FC = () => {
   async function pingApi() { setActionMsg(null); setPingResult(null); try { const data = await pingHealth(); setPingResult(JSON.stringify(data)); setActionMsg('API reachable'); } catch (e:any) { setActionMsg(`Error: ${e.message}`); setPingResult(null); } }
   async function fetchDepartmentManagers() { if (!deptManagersDeptId) return; try { const data = await listDepartmentManagers(Number(deptManagersDeptId)); setManagersData(data); setActionMsg('Dept managers loaded'); } catch { setActionMsg('Error loading dept managers'); } }
   async function fetchAttendance() { const year = Number(periodYear); const month = Number(periodMonth); try { const data = await listAttendance(year, month); setAttendanceData(data); setActionMsg('Attendance loaded'); } catch { setActionMsg('Error loading attendance'); } }
-  async function upsertAttendance() { if (!targetEmployeeId) return; const year = Number(periodYear); const month = Number(periodMonth); try { const data = await apiUpsertAttendance(Number(targetEmployeeId), 20, 2, year, month); setActionMsg(`Attendance upserted id ${data.id}`); fetchAttendance(); } catch { setActionMsg('Error upserting attendance'); } }
-  async function updateAttendance() { if (!targetEmployeeId || !attendanceData.length) { setActionMsg('Need attendance loaded & employee id'); return; } const record = attendanceData.find(r => r.employee_id === Number(targetEmployeeId)); if (!record) { setActionMsg('No record for employee'); return; } try { await apiUpdateAttendance(record.id, { working_days: record.working_days + 1 }); setActionMsg('Attendance updated'); fetchAttendance(); } catch { setActionMsg('Error updating attendance'); } }
+  async function updateAttendance() {
+    if (!targetEmployeeId) return;
+    const year = Number(periodYear);
+    const month = Number(periodMonth);
+    // Prefer explicit inputs; if empty, fall back to a loaded attendance record for that employee/period, otherwise 0.
+    const explicitWd = attendanceWorking !== '' ? Number(attendanceWorking) : undefined;
+    const explicitLd = attendanceLeave !== '' ? Number(attendanceLeave) : undefined;
+    const existing = attendanceData.find(r => r.employee_id === Number(targetEmployeeId));
+    const wd = explicitWd !== undefined ? explicitWd : (existing ? existing.working_days : 0);
+    const ld = explicitLd !== undefined ? explicitLd : (existing ? existing.leave_days : 0);
+    try {
+      const data = await apiUpdateAttendance(Number(targetEmployeeId), wd, ld, year, month);
+      setActionMsg(`Attendance updated id ${data.id}`);
+      fetchAttendance();
+    } catch {
+      setActionMsg('Error updating attendance');
+    }
+  }
+  // Note: the previous bulk +1 helper was removed per request
   async function deleteEmployee() { if (!targetEmployeeId) return; try { await apiDeleteEmployee(Number(targetEmployeeId)); setActionMsg('Employee deleted'); } catch { setActionMsg('Error deleting employee'); } }
   async function fetchAggregate() { if (!targetEmployeeId) return; const year = Number(periodYear); const month = Number(periodMonth); try { const data = await aggregateEmployee(Number(targetEmployeeId), year, month); setAggregateData(data); setActionMsg('Aggregate loaded'); } catch { setActionMsg('Error loading aggregate'); } }
   async function downloadPdf() { if (!targetEmployeeId) return; setPdfLoading(true); try { const blob = await downloadEmployeePdf(Number(targetEmployeeId)); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `employee_${targetEmployeeId}_report.pdf`; a.click(); URL.revokeObjectURL(url); setActionMsg('PDF downloaded'); } catch { setActionMsg('Error downloading PDF'); } finally { setPdfLoading(false); } }
@@ -258,8 +277,12 @@ const Dashboard: React.FC = () => {
               <h4 style={sectionTitleStyle}>Attendance Management</h4>
               <div style={sectionGridStyle}>
                 <button style={btnAdminAction} onClick={fetchAttendance}>List Attendance</button>
-                <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={upsertAttendance}>Upsert Attendance</button>
-                <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={updateAttendance}>+1 Working Day</button>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input placeholder="Working days" value={attendanceWorking} onChange={e => setAttendanceWorking(e.target.value)} style={adminInputStyle} />
+                  <input placeholder="Leave days" value={attendanceLeave} onChange={e => setAttendanceLeave(e.target.value)} style={adminInputStyle} />
+                  <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={updateAttendance}>Update Attendance</button>
+                </div>
+                
               </div>
             </section>
             <section style={adminSectionStyle}>

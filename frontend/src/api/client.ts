@@ -193,11 +193,11 @@ export async function listAllEmployees() {
   return res.json();
 }
 
-export async function upsertAttendance(employeeId: number, working_days: number, leave_days: number, year: number, month: number) {
+export async function updateAttendance(employeeId: number, working_days: number, leave_days: number, year: number, month: number) {
   return postEndpoint('/api/attendance/upsert/', { employee_id: employeeId, working_days, leave_days, year, month });
 }
 
-export async function updateAttendance(attendanceId: number, patch: { working_days?: number; leave_days?: number }) {
+export async function patchAttendance(attendanceId: number, patch: { working_days?: number; leave_days?: number }) {
   const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
   const res = await fetch(`${API_BASE}/api/attendance/${attendanceId}/update/`, { method: 'PATCH', headers, body: JSON.stringify(patch) });
   const data = await res.json().catch(() => ({}));

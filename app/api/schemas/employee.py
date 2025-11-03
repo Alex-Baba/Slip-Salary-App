@@ -46,6 +46,10 @@ class EmployeeCreateSchema(BaseModel):
     department_id: Optional[int] = None
     base_salary: Optional[float] = None
     expected_working_days: Optional[int] = None
+    # Optional initial attendance values; if omitted the service will
+    # populate sensible defaults (working_days -> expected_working_days, leave_days -> 0)
+    working_days: Optional[int] = None
+    leave_days: Optional[int] = None
 
 
 class EmployeeListSchema(BaseModel):

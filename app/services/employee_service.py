@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from app.db.models import Employee, EmployeeRole, Department
+from django.db import IntegrityError, transaction
+from app.db.models import Employee, EmployeeRole, Department, Attendance
 from app.api.schemas import EmployeeCreateSchema, EmployeeSchema, EmployeeRoleSchema, EmployeeUpdateSchema
 
 ROLE_BASE_SALARIES = {
@@ -45,6 +45,7 @@ def create_employee(data: EmployeeCreateSchema) -> Employee:
 	expected_working_days = data.expected_working_days if data.expected_working_days is not None else 22
 
 	try:
+		with transaction.atomic():
 			employee = Employee.objects.create(
 				email=data.email,
 				password=make_password(data.password),
@@ -57,6 +58,18 @@ def create_employee(data: EmployeeCreateSchema) -> Employee:
 				base_salary=base_salary,
 				expected_working_days=expected_working_days,
 			)
+
+			# Create an initial Attendance row for the current month/year.
+			# Use provided working_days/leave_days when available; otherwise
+			# default working_days -> expected_working_days, leave_days -> 0.
+			wd = getattr(data, 'working_days', None)
+			ld = getattr(data, 'leave_days', None)
+			if wd is None:
+				wd = expected_working_days or 0
+			if ld is None:
+				ld = 0
+			# Attendance model will set year/month defaults automatically.
+			Attendance.objects.create(employee=employee, working_days=wd, leave_days=ld)
 	except IntegrityError as e:
 		raise ValidationError({"detail": f"Database constraint error: {str(e)}"})
 	return employee
