@@ -15,6 +15,7 @@ from app.services.archive_service import archive_bytes
 from io import BytesIO
 import zipfile
 import logging
+import json
 
 logger = logging.getLogger('send')
 
@@ -139,6 +140,19 @@ def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: 
 		resp['archive_path'] = archive_path
 		info = {'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path}
 		logger.info('aggregate_sent %s', json.dumps(info, default=str))
+		# Remove the original generated CSV now that it's archived as a ZIP
+		try:
+			orig_path = get_aggregate_filepath(employee_id, y, m)
+			if os.path.exists(orig_path):
+				os.remove(orig_path)
+				resp['deleted_original'] = True
+				logger.info('aggregate_original_deleted %s', json.dumps({'employee_id': employee_id, 'path': orig_path}, default=str))
+			else:
+				resp['deleted_original'] = False
+				logger.warning('aggregate_original_missing %s', json.dumps({'employee_id': employee_id, 'path': orig_path}, default=str))
+		except Exception as ex_del:
+			resp['deleted_original_error'] = str(ex_del)
+			logger.warning('aggregate_original_delete_failed %s', json.dumps({'employee_id': employee_id, 'error': str(ex_del)}, default=str))
 	except Exception as ex:
 		resp['archive_error'] = str(ex)
 		warn = {'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)}
@@ -223,6 +237,18 @@ def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, 
 		resp['archive_path'] = archive_path
 		info = {'manager_id': manager_id, 'recipient': recipient, 'provider_response': resp, 'archive_path': archive_path}
 		logger.info('manager_aggregate_sent %s', json.dumps(info, default=str))
+		# Remove the original manager CSV now that we've archived the zipped copy.
+		try:
+			if os.path.exists(path):
+				os.remove(path)
+				resp['deleted_original'] = True
+				logger.info('manager_aggregate_original_deleted %s', json.dumps({'manager_id': manager_id, 'path': path}, default=str))
+			else:
+				resp['deleted_original'] = False
+				logger.warning('manager_aggregate_original_missing %s', json.dumps({'manager_id': manager_id, 'path': path}, default=str))
+		except Exception as ex_del:
+			resp['deleted_original_error'] = str(ex_del)
+			logger.warning('manager_aggregate_original_delete_failed %s', json.dumps({'manager_id': manager_id, 'error': str(ex_del)}, default=str))
 	except Exception as ex:
 		resp['archive_error'] = str(ex)
 		warn = {'manager_id': manager_id, 'recipient': recipient, 'error': str(ex)}

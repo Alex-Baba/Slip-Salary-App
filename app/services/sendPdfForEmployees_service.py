@@ -81,6 +81,19 @@ def send_payslip_email(employee_id: int) -> dict:
 			resp['archive_path'] = archive_path
 			info = {'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path}
 			logger.info('payslip_sent %s', json.dumps(info, default=str))
+			# Remove the original PDF now that we've archived the zipped copy.
+			try:
+				original_path = get_payslip_filepath(employee_id)
+				if os.path.exists(original_path):
+					os.remove(original_path)
+					resp['deleted_original'] = True
+					logger.info('payslip_original_deleted %s', json.dumps({'employee_id': employee_id, 'path': original_path}, default=str))
+				else:
+					resp['deleted_original'] = False
+					logger.warning('payslip_original_missing %s', json.dumps({'employee_id': employee_id, 'path': original_path}, default=str))
+			except Exception as ex_del:
+				resp['deleted_original_error'] = str(ex_del)
+				logger.warning('payslip_original_delete_failed %s', json.dumps({'employee_id': employee_id, 'error': str(ex_del)}, default=str))
 		except Exception as ex:
 			resp['archive_error'] = str(ex)
 			warn = {'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)}
