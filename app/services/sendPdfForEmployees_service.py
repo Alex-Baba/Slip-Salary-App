@@ -43,16 +43,11 @@ def send_payslip_email(employee_id: int) -> dict:
 		token_source = f"{employee_id}-{int(time.time())}".encode()
 		short_hash = hashlib.sha256(token_source).hexdigest()[:8]
 		subject = f"Document for Review - Ref #{employee_id}-{short_hash}"
-		text_body = (
-			f"Hello {employee.first_name},\n\n"
-			"Your requested document is attached. Please review and retain for your records.\n\n"
-			"--\nAutomated Notification"
-		)
-		html_body = (
-			f"<p>Hi {employee.first_name},</p>"
-			"<p>Your requested document is attached. Please review and retain for your records.</p>"
-			"<p style='font-size:12px;color:#666'>Automated Notification</p>"
-		)
+		# Use the same body builders as the non-neutral path to keep wording
+		# centralized in app/services/email_templates.py
+		bodies = build_payslip_bodies(employee.first_name)
+		text_body = bodies.get('text', '')
+		html_body = bodies.get('html', '')
 		attachment_name = f"document_{employee_id}.zip"
 		zip_buffer = io.BytesIO()
 		with pyzipper.AESZipFile(zip_buffer, 'w', compression=pyzipper.ZIP_DEFLATED, encryption=pyzipper.WZ_AES) as zf:
