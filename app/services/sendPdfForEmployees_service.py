@@ -9,6 +9,7 @@ from app.services.createPdfForEmployees_service import get_payslip_filepath
 from app.services.archive_service import archive_bytes
 import os
 import logging
+import json
 
 logger = logging.getLogger('send')
 
@@ -78,10 +79,12 @@ def send_payslip_email(employee_id: int) -> dict:
 				'provider_response': resp,
 			})
 			resp['archive_path'] = archive_path
-			logger.info('payslip_sent', extra={'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path})
+			info = {'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path}
+			logger.info('payslip_sent %s', json.dumps(info, default=str))
 		except Exception as ex:
 			resp['archive_error'] = str(ex)
-			logger.warning('payslip_archive_failed', extra={'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)})
+			warn = {'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)}
+			logger.warning('payslip_archive_failed %s', json.dumps(warn, default=str))
 	else:
 		subject = build_payslip_subject(period_ref)
 		bodies = build_payslip_bodies(employee.first_name)
@@ -110,10 +113,12 @@ def send_payslip_email(employee_id: int) -> dict:
 				'provider_response': resp,
 			})
 			resp['archive_path'] = archive_path
-			logger.info('payslip_sent', extra={'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path})
+			info = {'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path}
+			logger.info('payslip_sent %s', json.dumps(info, default=str))
 		except Exception as ex:
 			resp['archive_error'] = str(ex)
-			logger.warning('payslip_archive_failed', extra={'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)})
+			warn = {'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)}
+			logger.warning('payslip_archive_failed %s', json.dumps(warn, default=str))
 	resp["employee_id"] = employee_id
 	return resp
 

@@ -5,6 +5,10 @@ from django.core.exceptions import ValidationError
 from app.services.sendAggregatedEmployeeData_service import send_aggregated_csv_email
 from app.services.idempotency_service import get_or_create_idempotent
 from app.services.auth_utils import get_current_employee, can_manage_employee
+import logging
+from app.db.models import Employee
+
+logger = logging.getLogger('send')
 
 class SendAggregatedCsvEmailView(APIView):
     def post(self, request):
@@ -47,7 +51,21 @@ class SendAggregatedCsvEmailView(APIView):
             )
             if idem_result.get('conflict'):
                 return Response(idem_result, status=status.HTTP_409_CONFLICT)
-            return Response(idem_result['data'] | {"idempotent": idem_result['idempotent'], "cached": idem_result['cached']}, status=status.HTTP_200_OK)
+            result = idem_result['data'] | {"idempotent": idem_result['idempotent'], "cached": idem_result['cached']}
+            try:
+                recipient = Employee.objects.get(id=employee_id_int).email
+            except Employee.DoesNotExist:
+                recipient = None
+            payload = {
+                'actor_id': getattr(current, 'id', None),
+                'actor_email': getattr(current, 'email', None),
+                'employee_id': employee_id_int,
+                'recipient': recipient,
+                'idempotency_key': key,
+                'provider_response': result.get('provider_response') or result.get('archive_path') or result,
+            }
+            logger.info('send_employee_aggregate %s', __import__('json').dumps(payload, default=str))
+            return Response(result, status=status.HTTP_200_OK)
         else:
             if employee_id_int != current.id:
                 from app.db.models import Employee

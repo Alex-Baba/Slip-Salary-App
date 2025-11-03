@@ -5,6 +5,10 @@ from django.core.exceptions import ValidationError
 from app.services.sendPdfForEmployees_service import send_payslip_email
 from app.services.idempotency_service import get_or_create_idempotent
 from app.services.auth_utils import get_current_employee, employee_is_manager, employee_is_admin, can_manage_employee
+import logging
+from app.db.models import Employee
+
+logger = logging.getLogger('send')
 
 class SendPayslipEmailView(APIView):
     def post(self, request):
@@ -37,7 +41,23 @@ class SendPayslipEmailView(APIView):
             )
             if idem_result.get('conflict'):
                 return Response(idem_result, status=status.HTTP_409_CONFLICT)
-            return Response(idem_result['data'] | {"idempotent": idem_result['idempotent'], "cached": idem_result['cached']}, status=status.HTTP_200_OK)
+            result = idem_result['data'] | {"idempotent": idem_result['idempotent'], "cached": idem_result['cached']}
+            # Log who requested and who received
+            try:
+                recipient = Employee.objects.get(id=employee_id_int).email
+            except Employee.DoesNotExist:
+                recipient = None
+            payload = {
+                'actor_id': getattr(current, 'id', None),
+                'actor_email': getattr(current, 'email', None),
+                'target_employee_id': employee_id_int,
+                'target_recipient': recipient,
+                'idempotency_key': key,
+                'idempotent_cached': idem_result.get('cached', False),
+                'provider_response': result.get('provider_response') or result.get('archive_path') or result
+            }
+            logger.info('send_payslip_request %s', __import__('json').dumps(payload, default=str))
+            return Response(result, status=status.HTTP_200_OK)
         else:
             # Authorization: if not manager and requesting someone else -> forbidden
             if employee_id_int != current.id:
@@ -53,6 +73,21 @@ class SendPayslipEmailView(APIView):
             except ValidationError as e:
                 details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
                 return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
+            # Log who requested and who received
+            try:
+                recipient = Employee.objects.get(id=employee_id_int).email
+            except Employee.DoesNotExist:
+                recipient = None
+            payload = {
+                'actor_id': getattr(current, 'id', None),
+                'actor_email': getattr(current, 'email', None),
+                'target_employee_id': employee_id_int,
+                'target_recipient': recipient,
+                'idempotency_key': key,
+                'provider_response': result.get('provider_response') if isinstance(result, dict) else None,
+                'archive_path': result.get('archive_path') if isinstance(result, dict) else None,
+            }
+            logger.info('send_payslip_request %s', __import__('json').dumps(payload, default=str))
             return Response(result, status=status.HTTP_200_OK)
 
 __all__ = ["SendPayslipEmailView"]

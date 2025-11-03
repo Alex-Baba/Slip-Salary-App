@@ -162,6 +162,15 @@ CORS_ALLOW_HEADERS = list({
 })
 
 
+# Ensure logs directory exists for RotatingFileHandler
+try:
+    LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+    os.makedirs(LOGS_DIR, exist_ok=True)
+except Exception:
+    # If directory creation fails, handlers may still write to console.
+    pass
+
+
 # Basic logging configuration for request logging
 LOGGING = {
     'version': 1,
@@ -170,17 +179,39 @@ LOGGING = {
         'verbose': {
             'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
         },
+        'request': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s | %(request_log)s'
+        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'request_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'requests.log'),
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 5,
+            'formatter': 'request',
+        },
+        'send_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'send.log'),
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'request': {
-            'handlers': ['console'],
+            'handlers': ['console', 'request_file'],
             'level': os.environ.get('REQUEST_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'send': {
+            'handlers': ['console', 'send_file'],
+            'level': os.environ.get('SEND_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
     },

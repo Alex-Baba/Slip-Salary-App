@@ -137,10 +137,12 @@ def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: 
 			'provider_response': resp,
 		})
 		resp['archive_path'] = archive_path
-		logger.info('aggregate_sent', extra={'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path})
+		info = {'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path}
+		logger.info('aggregate_sent %s', json.dumps(info, default=str))
 	except Exception as ex:
 		resp['archive_error'] = str(ex)
-		logger.warning('aggregate_archive_failed', extra={'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)})
+		warn = {'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)}
+		logger.warning('aggregate_archive_failed %s', json.dumps(warn, default=str))
 	resp["employee_id"] = employee_id
 	return resp
 
@@ -219,10 +221,12 @@ def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, 
 			'provider_response': resp,
 		})
 		resp['archive_path'] = archive_path
-		logger.info('manager_aggregate_sent', extra={'manager_id': manager_id, 'recipient': recipient, 'provider_response': resp, 'archive_path': archive_path})
+		info = {'manager_id': manager_id, 'recipient': recipient, 'provider_response': resp, 'archive_path': archive_path}
+		logger.info('manager_aggregate_sent %s', json.dumps(info, default=str))
 	except Exception as ex:
 		resp['archive_error'] = str(ex)
-		logger.warning('manager_aggregate_archive_failed', extra={'manager_id': manager_id, 'recipient': recipient, 'error': str(ex)})
+		warn = {'manager_id': manager_id, 'recipient': recipient, 'error': str(ex)}
+		logger.warning('manager_aggregate_archive_failed %s', json.dumps(warn, default=str))
 	resp["manager_id"] = manager_id
 	return resp
 
