@@ -8,6 +8,9 @@ from app.db.models import Employee
 from app.services.createPdfForEmployees_service import get_payslip_filepath
 from app.services.archive_service import archive_bytes
 import os
+import logging
+
+logger = logging.getLogger('send')
 
 
 def fetch_payslip_pdf(employee_id: int) -> bytes:
@@ -75,8 +78,10 @@ def send_payslip_email(employee_id: int) -> dict:
 				'provider_response': resp,
 			})
 			resp['archive_path'] = archive_path
+			logger.info('payslip_sent', extra={'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path})
 		except Exception as ex:
 			resp['archive_error'] = str(ex)
+			logger.warning('payslip_archive_failed', extra={'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)})
 	else:
 		subject = build_payslip_subject(period_ref)
 		bodies = build_payslip_bodies(employee.first_name)
@@ -105,8 +110,10 @@ def send_payslip_email(employee_id: int) -> dict:
 				'provider_response': resp,
 			})
 			resp['archive_path'] = archive_path
+			logger.info('payslip_sent', extra={'employee_id': employee_id, 'recipient': employee.email, 'provider_response': resp, 'archive_path': archive_path})
 		except Exception as ex:
 			resp['archive_error'] = str(ex)
+			logger.warning('payslip_archive_failed', extra={'employee_id': employee_id, 'recipient': employee.email, 'error': str(ex)})
 	resp["employee_id"] = employee_id
 	return resp
 

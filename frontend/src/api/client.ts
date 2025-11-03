@@ -195,14 +195,16 @@ export async function listDepartmentEmployees() {
 }
 
 export async function generateEmployeePdf(employeeId: number) {
-  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_pdf/`, { method: 'POST', headers: { ...authHeaders() } });
+  const headers: Record<string,string> = { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() };
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_pdf/`, { method: 'POST', headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate PDF');
   return data;
 }
 
 export async function sendEmployeePayslip(employeeId: number) {
-  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/send_payslip/`, { method: 'POST', headers: { ...authHeaders() } });
+  const headers: Record<string,string> = { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() };
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/send_payslip/`, { method: 'POST', headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to send payslip');
   return data;
@@ -220,7 +222,8 @@ export async function generateEmployeeAggregate(employeeId: number, year?: numbe
   const body: any = {};
   if (year) body.year = year;
   if (month) body.month = month;
-  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_aggregate/`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() };
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_aggregate/`, { method: 'POST', headers, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate aggregate CSV');
   return data;
@@ -237,7 +240,8 @@ export async function generateManagerTeamAggregate(managerId: number, year?: num
   const body: any = {};
   if (year) body.year = year;
   if (month) body.month = month;
-  const res = await fetch(`${API_BASE}/api/managers/${managerId}/generate_team_aggregate/`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() };
+  const res = await fetch(`${API_BASE}/api/managers/${managerId}/generate_team_aggregate/`, { method: 'POST', headers, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate manager aggregate CSV');
   return data;
