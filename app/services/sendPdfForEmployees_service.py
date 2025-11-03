@@ -6,6 +6,7 @@ import os, hashlib, time, io
 import pyzipper
 from app.db.models import Employee
 from app.services.createPdfForEmployees_service import get_payslip_filepath
+from app.services.archive_service import archive_bytes
 import os
 
 
@@ -64,6 +65,18 @@ def send_payslip_email(employee_id: int) -> dict:
 			html=html_body,
 			attachments=[(attachment_name, zip_bytes, "application/zip")]
 		)
+		# Archive the sent zip for audit purposes
+		try:
+			y = period_ref.year
+			m = period_ref.month
+			archive_path = archive_bytes(zip_bytes, 'payslips', y, m, f"employee_{employee_id}_payslip.zip", {
+				'employee_id': employee_id,
+				'recipient': employee.email,
+				'provider_response': resp,
+			})
+			resp['archive_path'] = archive_path
+		except Exception as ex:
+			resp['archive_error'] = str(ex)
 	else:
 		subject = build_payslip_subject(period_ref)
 		bodies = build_payslip_bodies(employee.first_name)
@@ -82,6 +95,18 @@ def send_payslip_email(employee_id: int) -> dict:
 			html=bodies["html"],
 			attachments=[(attachment_name, zip_bytes, "application/zip")]
 		)
+		# Archive the sent zip for audit purposes
+		try:
+			y = period_ref.year
+			m = period_ref.month
+			archive_path = archive_bytes(zip_bytes, 'payslips', y, m, f"employee_{employee_id}_payslip.zip", {
+				'employee_id': employee_id,
+				'recipient': employee.email,
+				'provider_response': resp,
+			})
+			resp['archive_path'] = archive_path
+		except Exception as ex:
+			resp['archive_error'] = str(ex)
 	resp["employee_id"] = employee_id
 	return resp
 

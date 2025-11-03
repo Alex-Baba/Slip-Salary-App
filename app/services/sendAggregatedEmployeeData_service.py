@@ -11,6 +11,9 @@ from django.conf import settings
 
 from app.db.models import Employee
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
+from app.services.archive_service import archive_bytes
+from io import BytesIO
+import zipfile
 
 AGGREGATE_ENDPOINT_NAME = 'aggregate-employee-data'
 
@@ -115,6 +118,24 @@ def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: 
 		html=bodies["html"],
 		attachments=[(f"employee_{employee_id}_aggregate.csv", csv_bytes, "text/csv")]
 	)
+	# Archive the CSV for audit (store as ZIP, no password)
+	try:
+		now = datetime.today()
+		y = year or now.year
+		m = month or now.month
+		# create in-memory zip containing the CSV
+		zip_buffer = BytesIO()
+		with zipfile.ZipFile(zip_buffer, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+			zf.writestr(f"employee_{employee_id}_aggregate.csv", csv_bytes)
+		zip_bytes = zip_buffer.getvalue()
+		archive_path = archive_bytes(zip_bytes, 'aggregates', y, m, f"employee_{employee_id}_aggregate.zip", {
+			'employee_id': employee_id,
+			'recipient': employee.email,
+			'provider_response': resp,
+		})
+		resp['archive_path'] = archive_path
+	except Exception as ex:
+		resp['archive_error'] = str(ex)
 	resp["employee_id"] = employee_id
 	return resp
 
@@ -178,6 +199,23 @@ def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, 
 		html=bodies["html"],
 		attachments=[(filename, csv_bytes, "text/csv")]
 	)
+	# Archive the manager CSV for audit (store as ZIP, no password)
+	try:
+		now = datetime.today()
+		y = year or now.year
+		m = month or now.month
+		zip_buffer = BytesIO()
+		with zipfile.ZipFile(zip_buffer, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+			zf.writestr(filename, csv_bytes)
+		zip_bytes = zip_buffer.getvalue()
+		archive_path = archive_bytes(zip_bytes, 'aggregates', y, m, filename.replace('.csv', '.zip'), {
+			'manager_id': manager_id,
+			'recipient': recipient,
+			'provider_response': resp,
+		})
+		resp['archive_path'] = archive_path
+	except Exception as ex:
+		resp['archive_error'] = str(ex)
 	resp["manager_id"] = manager_id
 	return resp
 
