@@ -33,11 +33,13 @@ def update_department(department_id: int, data: DepartmentUpdateSchema) -> Depar
     dep.save()
     return dep
 
-def delete_department(department_id: int) -> Department:
+def delete_department(department_id: int) -> dict:
     try:
         dep = Department.objects.get(id=department_id)
     except Department.DoesNotExist:
         raise ValidationError({"department_id": "Department not found"})
-    dep_data = dep  # return after deletion (caller serializes if needed)
+    # Take a simple snapshot before deleting to avoid serializing a deleted ORM instance later
+    from app.api.schemas import DepartmentSchema
+    dep_snapshot = DepartmentSchema.model_validate(dep).dict()
     dep.delete()
-    return dep_data
+    return dep_snapshot

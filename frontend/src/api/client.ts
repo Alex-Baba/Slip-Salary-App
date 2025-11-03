@@ -165,6 +165,21 @@ export async function createDepartment(name: string) {
   return data;
 }
 
+export async function updateDepartment(departmentId: number, name: string) {
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
+  const res = await fetch(`${API_BASE}/api/departments/${departmentId}/update/`, { method: 'PATCH', headers, body: JSON.stringify({ name }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to update department');
+  return data;
+}
+
+export async function deleteDepartment(departmentId: number) {
+  const res = await fetch(`${API_BASE}/api/departments/${departmentId}/delete/`, { method: 'DELETE', headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to delete department');
+  return data;
+}
+
 export async function listManagers() {
   const url = `${API_BASE}/api/managers/`;
   const res = await safeFetch(url, { headers: authHeaders() });

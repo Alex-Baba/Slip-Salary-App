@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth } from '../api/client';
+import React, { useEffect, useState, useRef } from 'react';
+import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment } from '../api/client';
 
 interface BonusFormState {
   employee_id: string;
@@ -37,8 +37,21 @@ const Dashboard: React.FC = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deptManagersDeptId, setDeptManagersDeptId] = useState('');
   const [departmentCreateName, setDepartmentCreateName] = useState('');
+  const [deptCreateMsg, setDeptCreateMsg] = useState<string | null>(null);
+  const deptInputRef = useRef<HTMLInputElement | null>(null);
   const [employeesData, setEmployeesData] = useState<any[]>([]);
   const [pingResult, setPingResult] = useState<string | null>(null);
+  const [deptTargetId, setDeptTargetId] = useState<string>('');
+  const [deptNewName, setDeptNewName] = useState<string>('');
+  const [confirmDeleteEmployee, setConfirmDeleteEmployee] = useState<boolean>(false);
+  const [confirmDeleteDept, setConfirmDeleteDept] = useState<boolean>(false);
+
+  // Small visual helpers for Directory card
+  const dirCardStyle: React.CSSProperties = { width: '100%', background: '#071226', padding: '0.75rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' };
+  const controlRow: React.CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 };
+  const inputCompact: React.CSSProperties = { ...adminInputStyle, padding: '6px 8px', fontSize: 13 };
+  const btnPrimarySmall: React.CSSProperties = { ...btnAdminAction, padding: '6px 10px', fontSize: 13 };
+  const btnDanger: React.CSSProperties = { ...btnSmall, background: '#b91c1c', color: 'white', padding: '6px 10px' };
 
   useEffect(() => {
     (async () => {
@@ -173,7 +186,24 @@ const Dashboard: React.FC = () => {
   // Admin fetch helpers
   async function fetchRoles() { try { const data = await listRoles(); setRolesData(data); setActionMsg('Roles loaded'); } catch { setActionMsg('Error loading roles'); } }
   async function fetchDepartments() { try { const data = await listDepartments(); setDepartmentsData(data); setActionMsg('Departments loaded'); } catch { setActionMsg('Error loading departments'); } }
-  async function createDepartment() { if (!departmentCreateName) return; try { await apiCreateDepartment(departmentCreateName); setDepartmentCreateName(''); fetchDepartments(); setActionMsg('Department created'); } catch { setActionMsg('Error creating department'); } }
+  async function createDepartment(keepFocus = false) {
+    if (!departmentCreateName) return;
+    try {
+      await apiCreateDepartment(departmentCreateName);
+      setDepartmentCreateName('');
+      fetchDepartments();
+      setActionMsg('Department created');
+      setDeptCreateMsg('Created');
+      // focus the input when requested for quick multiple adds
+      if (keepFocus) {
+        setTimeout(() => deptInputRef.current?.focus(), 50);
+      }
+      // clear the inline message after a short time
+      setTimeout(() => setDeptCreateMsg(null), 3000);
+    } catch (e:any) {
+      setActionMsg('Error creating department');
+    }
+  }
   async function fetchManagers() { try { const data = await listManagers(); setManagersData(data); setActionMsg('Managers loaded'); } catch { setActionMsg('Error loading managers'); } }
   async function fetchAllEmployees() { try { const data = await listAllEmployees(); setEmployeesData(data); setActionMsg(`Loaded ${data.length} employees`); } catch (e:any) { setActionMsg(`Error: ${e.message}`); } }
   async function pingApi() { setActionMsg(null); setPingResult(null); try { const data = await pingHealth(); setPingResult(JSON.stringify(data)); setActionMsg('API reachable'); } catch (e:any) { setActionMsg(`Error: ${e.message}`); setPingResult(null); } }
@@ -198,7 +228,19 @@ const Dashboard: React.FC = () => {
     }
   }
   // Note: the previous bulk +1 helper was removed per request
-  async function deleteEmployee() { if (!targetEmployeeId) return; try { await apiDeleteEmployee(Number(targetEmployeeId)); setActionMsg('Employee deleted'); } catch { setActionMsg('Error deleting employee'); } }
+  async function deleteEmployee() {
+    if (!targetEmployeeId) return;
+    try {
+      await apiDeleteEmployee(Number(targetEmployeeId));
+      setActionMsg('Employee deleted');
+      // clear selection and refresh employee list
+      setTargetEmployeeId('');
+      setConfirmDeleteEmployee(false);
+      fetchAllEmployees();
+    } catch (e:any) {
+      setActionMsg(`Error deleting employee: ${e.message || e}`);
+    }
+  }
   async function fetchAggregate() { if (!targetEmployeeId) return; const year = Number(periodYear); const month = Number(periodMonth); try { const data = await aggregateEmployee(Number(targetEmployeeId), year, month); setAggregateData(data); setActionMsg('Aggregate loaded'); } catch { setActionMsg('Error loading aggregate'); } }
   async function downloadPdf() { if (!targetEmployeeId) return; setPdfLoading(true); try { const blob = await downloadEmployeePdf(Number(targetEmployeeId)); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `employee_${targetEmployeeId}_report.pdf`; a.click(); URL.revokeObjectURL(url); setActionMsg('PDF downloaded'); } catch { setActionMsg('Error downloading PDF'); } finally { setPdfLoading(false); } }
 
@@ -258,39 +300,94 @@ const Dashboard: React.FC = () => {
             </section>
             <section style={adminSectionStyle}>
               <h4 style={sectionTitleStyle}>Directory & Structure</h4>
-              <div style={sectionGridStyle}>
-                <button style={btnAdminAction} onClick={fetchRoles}>List Roles</button>
-                <button style={btnAdminAction} onClick={fetchDepartments}>List Departments</button>
-                <button style={btnAdminAction} onClick={fetchAllEmployees}>List All Employees</button>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input placeholder="New Dept Name" value={departmentCreateName} onChange={e => setDepartmentCreateName(e.target.value)} style={adminInputStyle} />
-                  <button style={btnAdminAction} disabled={!departmentCreateName} onClick={createDepartment}>Create Dept</button>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '60%' }}>
+                  <button style={{ ...btnAdminAction, justifyContent: 'flex-start' }} onClick={fetchRoles}>📋 List Roles</button>
+                  <button style={{ ...btnAdminAction, justifyContent: 'flex-start' }} onClick={fetchDepartments}>🏷️ List Departments</button>
+                  <button style={{ ...btnAdminAction, justifyContent: 'flex-start' }} onClick={fetchAllEmployees}>👥 List All Employees</button>
+                  <button style={{ ...btnAdminAction, justifyContent: 'flex-start' }} onClick={fetchManagers}>🧭 List Managers</button>
                 </div>
-                <button style={btnAdminAction} onClick={fetchManagers}>List Managers</button>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input placeholder="Dept ID" value={deptManagersDeptId} onChange={e => setDeptManagersDeptId(e.target.value)} style={adminInputStyle} />
-                  <button style={btnAdminAction} disabled={!deptManagersDeptId} onClick={fetchDepartmentManagers}>Dept Managers</button>
+                <div style={dirCardStyle}>
+                  <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 10, fontWeight: 600 }}>Department — Create / Update / Delete</div>
+                  <div style={controlRow}>
+                    <input ref={deptInputRef} placeholder="New Dept Name" value={departmentCreateName} onChange={e => setDepartmentCreateName(e.target.value)} style={{ ...inputCompact, flex: 1 }} />
+                    <button style={{ ...btnPrimarySmall }} disabled={!departmentCreateName} onClick={() => createDepartment(false)}>Create</button>
+                  </div>
+                  {deptCreateMsg && <div style={{ color: 'lightgreen', marginBottom: 8 }}>{deptCreateMsg}</div>}
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.03)', margin: '8px 0' }} />
+                  <div style={controlRow}>
+                    <input placeholder="Dept ID" value={deptTargetId} onChange={e => setDeptTargetId(e.target.value)} style={{ ...inputCompact, width: deptColumnWidth }} />
+                    <input placeholder="New Name (for update)" value={deptNewName} onChange={e => setDeptNewName(e.target.value)} style={{ ...inputCompact, flex: 1 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <button style={{ ...btnPrimarySmall, flex: 1 }} disabled={!deptTargetId || !deptNewName} onClick={async () => {
+                      try {
+                        await updateDepartment(Number(deptTargetId), deptNewName);
+                        setActionMsg('Department updated');
+                        setDeptTargetId('');
+                        setDeptNewName('');
+                        fetchDepartments();
+                      } catch (e:any) {
+                        setActionMsg(`Error: ${e.message}`);
+                      }
+                    }}>Update</button>
+                    {!confirmDeleteDept ? (
+                      <button style={{ ...btnDanger, width: deptColumnWidth }} disabled={!deptTargetId} onClick={() => setConfirmDeleteDept(true)}>Delete</button>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={{ ...btnDanger, width: deptColumnWidth }} disabled={!deptTargetId} onClick={async () => {
+                          try {
+                            await deleteDepartment(Number(deptTargetId));
+                            setActionMsg('Department deleted');
+                            setDeptTargetId('');
+                            setConfirmDeleteDept(false);
+                            fetchDepartments();
+                          } catch (e:any) {
+                            setActionMsg(`Error: ${e.message}`);
+                          }
+                        }}>Confirm</button>
+                        <button style={{ ...btnSmall, width: 72 }} onClick={() => setConfirmDeleteDept(false)}>Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.03)', margin: '8px 0' }} />
+                  <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 8, fontWeight: 600 }}>Employee — Delete</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!confirmDeleteEmployee ? (
+                      <button style={{ ...btnPrimarySmall, background: '#b91c1c', color: 'white', flex: 1 }} disabled={!targetEmployeeId} onClick={() => setConfirmDeleteEmployee(true)}>Delete Employee</button>
+                    ) : (
+                      <>
+                        <button style={{ ...btnDanger, flex: 1 }} disabled={!targetEmployeeId} onClick={deleteEmployee}>Confirm Delete</button>
+                        <button style={{ ...btnSmall, width: 72 }} onClick={() => setConfirmDeleteEmployee(false)}>Cancel</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
             <section style={adminSectionStyle}>
               <h4 style={sectionTitleStyle}>Attendance Management</h4>
-              <div style={sectionGridStyle}>
-                <button style={btnAdminAction} onClick={fetchAttendance}>List Attendance</button>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input placeholder="Working days" value={attendanceWorking} onChange={e => setAttendanceWorking(e.target.value)} style={adminInputStyle} />
-                  <input placeholder="Leave days" value={attendanceLeave} onChange={e => setAttendanceLeave(e.target.value)} style={adminInputStyle} />
-                  <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={updateAttendance}>Update Attendance</button>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <label style={adminLabelStyle}>
+                      Working days
+                      <input type="number" min={0} step={1} value={attendanceWorking} onChange={e => setAttendanceWorking(e.target.value)} style={{ ...adminInputStyle, width: 120 }} />
+                    </label>
+                    <label style={adminLabelStyle}>
+                      Leave days
+                      <input type="number" min={0} step={1} value={attendanceLeave} onChange={e => setAttendanceLeave(e.target.value)} style={{ ...adminInputStyle, width: 120 }} />
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button style={btnSmall} onClick={fetchAttendance}>Load Period</button>
+                    <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={updateAttendance}>Update</button>
+                  </div>
                 </div>
                 
               </div>
             </section>
-            <section style={adminSectionStyle}>
-              <h4 style={sectionTitleStyle}>Employee Admin</h4>
-              <div style={sectionGridStyle}>
-                <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={deleteEmployee}>Delete Employee</button>
-              </div>
-            </section>
+            {/* Employee admin actions moved into Directory & Structure card per UX request */}
           </div>
           <p style={{ fontSize: 12, marginTop: '0.75rem', color: '#94a3b8' }}>Leave ID fields blank to act on your own user. Adjust year/month for period-specific emails.</p>
         </div>
@@ -368,7 +465,7 @@ const Dashboard: React.FC = () => {
                     <th style={thStyle}>Email</th>
                     <th style={thStyle}>Name</th>
                     <th style={thStyle}>Role</th>
-                    <th style={thStyle}>Dept</th>
+                    <th style={{ ...thStyle, width: deptColumnWidth }}>Dept</th>
                     <th style={thStyle}>Manager</th>
                   </tr>
                 </thead>
@@ -398,6 +495,7 @@ const Dashboard: React.FC = () => {
 
 const btnStyle: React.CSSProperties = { padding: '0.6rem 1rem', background: '#1e3a8a', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 4 };
 const btnPrimaryStyle: React.CSSProperties = { ...btnStyle, background: '#2563eb' };
+const btnSmall: React.CSSProperties = { padding: '0.35rem 0.6rem', background: '#065f46', color: '#e6fffa', border: 'none', cursor: 'pointer', borderRadius: 4, fontSize: '0.85rem' };
 const thStyle: React.CSSProperties = { textAlign: 'left', borderBottom: '1px solid #ddd', padding: '4px 6px' };
 const tdStyle: React.CSSProperties = { borderBottom: '1px solid #eee', padding: '4px 6px', fontSize: 14 };
 const adminLabelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', fontSize: 13, gap: 4 };
@@ -407,5 +505,7 @@ const preStyle: React.CSSProperties = { background: '#0f0f0f', color: '#e2e8f0',
 const adminSectionStyle: React.CSSProperties = { border: '1px solid #243046', padding: '0.75rem', borderRadius: 4, background: '#1d2b3e' };
 const sectionTitleStyle: React.CSSProperties = { margin: '0 0 0.5rem 0', fontSize: 14, letterSpacing: 0.5, textTransform: 'uppercase', color: '#93c5fd' };
 const sectionGridStyle: React.CSSProperties = { display: 'grid', gap: '0.5rem', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
+// Department column width used for department-related UI (inputs/buttons and table header)
+const deptColumnWidth = 96;
 
 export default Dashboard;

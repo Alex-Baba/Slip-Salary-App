@@ -71,8 +71,8 @@ class DepartmentDeleteView(APIView):
         if not employee_is_admin(actor):
             return Response({"error": "Admin privileges required"}, status=status.HTTP_403_FORBIDDEN)
         try:
-            dep = delete_department(department_id)
+            dep_snapshot = delete_department(department_id)
         except ValidationError as e:
             details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
             return Response({"model_errors": details}, status=status.HTTP_404_NOT_FOUND)
-        return Response(DepartmentSchema.from_orm(dep).dict(), status=status.HTTP_200_OK)
+        return Response(dep_snapshot, status=status.HTTP_200_OK)
