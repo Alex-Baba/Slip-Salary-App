@@ -76,3 +76,6 @@ Thumbs.db
 # dotenv
 .env
 .env.*
+
+# Media uploads / generated files
+media/

@@ -31,12 +31,17 @@ from app.api.routers.manager import ManagerListView, DepartmentManagersView
 from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
 from app.api.routers.bonus import BonusCreateView, BonusListView, BonusUpdateView, BonusDeleteView
+from app.api.routers.manager_controls import DepartmentMyEmployeesView, EmployeeGeneratePdfView, EmployeeSendPayslipView
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
 from app.api.routers.sendPdfToEmployees import SendPayslipEmailView
 from app.api.routers.auth import LoginView
 from app.api.routers.me import MeView
 from app.api.routers.sendAggregatedCsvEmail import SendAggregatedCsvEmailView
 from app.api.routers.sendManagerAggregatedCsvEmail import SendManagerAggregatedCsvEmailView
+from app.api.routers.aggregate_controls import (
+    EmployeeGenerateAggregateView, EmployeeAggregateStatusView,
+    ManagerGenerateTeamAggregateView, ManagerAggregateStatusView
+)
 
 class RoleListView(APIView):
     def get(self, request):
@@ -65,6 +70,13 @@ urlpatterns = [
     path('api/bonuses/list/', BonusListView.as_view(), name='bonus-list'),
     path('api/bonuses/<int:bonus_id>/update/', BonusUpdateView.as_view(), name='bonus-update'),
     path('api/bonuses/<int:bonus_id>/delete/', BonusDeleteView.as_view(), name='bonus-delete'),
+    path('api/departments/my_employees/', DepartmentMyEmployeesView.as_view(), name='dept-my-employees'),
+    path('api/employees/<int:employee_id>/generate_pdf/', EmployeeGeneratePdfView.as_view(), name='employee-generate-pdf'),
+    path('api/employees/<int:employee_id>/send_payslip/', EmployeeSendPayslipView.as_view(), name='employee-send-payslip'),
+    path('api/employees/<int:employee_id>/generate_aggregate/', EmployeeGenerateAggregateView.as_view(), name='employee-generate-aggregate'),
+    path('api/employees/<int:employee_id>/aggregate_status/', EmployeeAggregateStatusView.as_view(), name='employee-aggregate-status'),
+    path('api/managers/<int:manager_id>/generate_team_aggregate/', ManagerGenerateTeamAggregateView.as_view(), name='manager-generate-team-aggregate'),
+    path('api/managers/<int:manager_id>/aggregate_status/', ManagerAggregateStatusView.as_view(), name='manager-aggregate-status'),
     path('api/employees/create_pdf/', CreatePdfEmployeesView.as_view(), name='create-pdf-employees'),
     path('api/employees/send_payslip_email/', SendPayslipEmailView.as_view(), name='send-payslip-email'),
     path('api/auth/login/', LoginView.as_view(), name='login'),

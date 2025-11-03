@@ -4,6 +4,33 @@ from app.db.models import Employee, Attendance, Bonus
 from django.db.models import Sum
 from app.services.salary_service import compute_monthly_salary, _business_days_in_month
 from django.core.exceptions import ValidationError
+import os
+from django.conf import settings
+
+
+def _payslip_dir_for(year: int, month: int) -> str:
+    base = getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
+    path = os.path.join(base, 'payslips', f"{year}-{month:02d}")
+    return path
+
+
+def get_payslip_filepath(employee_id: int, year: int | None = None, month: int | None = None) -> str:
+    """Return the absolute path where a payslip PDF should be stored for the given employee and period."""
+    now = datetime.today()
+    y = year or now.year
+    m = month or now.month
+    directory = _payslip_dir_for(y, m)
+    filename = f"employee_{employee_id}_report.pdf"
+    return os.path.join(directory, filename)
+
+
+def save_payslip_pdf(employee_id: int, pdf_bytes: bytes, year: int | None = None, month: int | None = None) -> str:
+    """Save pdf_bytes to the payslip storage and return the file path."""
+    path = get_payslip_filepath(employee_id, year, month)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as fh:
+        fh.write(pdf_bytes)
+    return path
 
 def create_pdf_for_employee(employee_id: int) -> bytes:
     """Generate a minimal monthly payslip PDF for an employee"""
@@ -65,3 +92,4 @@ def create_pdf_for_employee(employee_id: int) -> bytes:
     pdf.cell(0, 6, txt="Generated automatically.", ln=True, align='C')
 
     return pdf.output(dest='S').encode('latin1')
+

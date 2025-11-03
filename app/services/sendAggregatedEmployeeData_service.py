@@ -6,6 +6,8 @@ from django.test import RequestFactory
 from django.urls import reverse
 from io import StringIO
 import csv
+import os
+from django.conf import settings
 
 from app.db.models import Employee
 from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
@@ -60,17 +62,52 @@ def generate_employee_csv(aggregated: dict) -> bytes:
 	])
 	return output.getvalue().encode('utf-8')
 
+
+def _aggregate_dir_for(year: int, month: int) -> str:
+	base = getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
+	path = os.path.join(base, 'aggregates', f"{year}-{month:02d}")
+	return path
+
+
+def get_aggregate_filepath(employee_id: int, year: int | None = None, month: int | None = None) -> str:
+	now = datetime.today()
+	y = year or now.year
+	m = month or now.month
+	directory = _aggregate_dir_for(y, m)
+	filename = f"employee_{employee_id}_aggregate.csv"
+	return os.path.join(directory, filename)
+
+
+def save_aggregate_csv(employee_id: int, csv_bytes: bytes, year: int | None = None, month: int | None = None) -> str:
+	path = get_aggregate_filepath(employee_id, year, month)
+	os.makedirs(os.path.dirname(path), exist_ok=True)
+	with open(path, 'wb') as fh:
+		fh.write(csv_bytes)
+	return path
+
+
+def fetch_aggregate_csv(employee_id: int, year: int | None = None, month: int | None = None) -> bytes:
+	path = get_aggregate_filepath(employee_id, year, month)
+	if not os.path.exists(path):
+		raise ValidationError({"csv": "Aggregated CSV not found. Generate it first using the generate endpoint."})
+	with open(path, 'rb') as fh:
+		return fh.read()
+
 def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: int | None = None) -> dict:
-	"""Fetch aggregated data, build CSV, and email via provider chain."""
-	aggregated = fetch_aggregated_employee_data(employee_id, year, month)
+	"""Send an already-generated aggregated CSV for an employee.
+
+	The CSV must be generated and saved beforehand using the generate endpoint. This avoids
+	regenerating and ensures admins/managers explicitly create the artifact.
+	"""
 	try:
 		employee = Employee.objects.get(id=employee_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"employee_id": "Employee not found"})
-	csv_bytes = generate_employee_csv(aggregated)
+	# Read persisted CSV (raises ValidationError if missing)
+	csv_bytes = fetch_aggregate_csv(employee_id, year, month)
 	period_ref = datetime.utcnow()
 	subject = build_aggregate_subject(period_ref)
-	bodies = build_aggregate_bodies(employee.first_name, aggregated.get('bonuses', []))
+	bodies = build_aggregate_bodies(employee.first_name, [])
 	resp = send_email(
 		to=[employee.email],
 		subject=subject,
@@ -79,7 +116,6 @@ def send_aggregated_csv_email(employee_id: int, year: int | None = None, month: 
 		attachments=[(f"employee_{employee_id}_aggregate.csv", csv_bytes, "text/csv")]
 	)
 	resp["employee_id"] = employee_id
-	resp["rows"] = 2
 	return resp
 
 def generate_manager_csv(rows: list[dict]) -> bytes:
@@ -109,18 +145,26 @@ def generate_manager_csv(rows: list[dict]) -> bytes:
 	return output.getvalue().encode('utf-8')
 
 def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, month: int | None = None, to_email: str | None = None) -> dict:
-	"""Collect all direct subordinates for manager and send consolidated CSV to manager (or override recipient)."""
+	"""Send an already-generated team aggregate CSV for the manager.
+
+	Requires that a manager-team CSV has been generated and saved previously.
+	"""
 	try:
 		manager = Employee.objects.get(id=manager_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"manager_id": "Manager not found"})
-	subs = Employee.objects.filter(manager_id=manager_id).order_by('id')
-	if not subs.exists():
-		return {"manager_id": manager_id, "sent": False, "error": "No subordinates"}
-	rows = []
-	for emp in subs:
-		rows.append(fetch_aggregated_employee_data(emp.id, year, month))
-	csv_bytes = generate_manager_csv(rows)
+	# Manager team file path convention
+	now = datetime.today()
+	y = year or now.year
+	m = month or now.month
+	base = getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
+	dirpath = os.path.join(base, 'aggregates', f"{y}-{m:02d}")
+	filename = f"manager_{manager_id}_team_aggregate.csv"
+	path = os.path.join(dirpath, filename)
+	if not os.path.exists(path):
+		raise ValidationError({"csv": "Manager aggregate CSV not found. Generate it first using the generate endpoint."})
+	with open(path, 'rb') as fh:
+		csv_bytes = fh.read()
 	period_ref = datetime.utcnow()
 	subject = f"Team Compensation Summary - {period_ref.strftime('%B %Y')}"
 	bodies = build_aggregate_bodies(manager.first_name, [])  # summary text reused
@@ -132,10 +176,9 @@ def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, 
 		subject=subject,
 		text=bodies["text"],
 		html=bodies["html"],
-		attachments=[(f"manager_{manager_id}_team_aggregate.csv", csv_bytes, "text/csv")]
+		attachments=[(filename, csv_bytes, "text/csv")]
 	)
 	resp["manager_id"] = manager_id
-	resp["employee_count"] = subs.count()
 	return resp
 
 __all__ = ["fetch_aggregated_employee_data", "generate_employee_csv", "send_aggregated_csv_email", "generate_manager_csv", "send_manager_aggregated_csv_email"]

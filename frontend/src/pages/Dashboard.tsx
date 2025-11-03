@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment } from '../api/client';
+import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, generateManagerTeamAggregate, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment, listDepartmentEmployees, generateEmployeePdf, sendEmployeePayslip } from '../api/client';
 
 interface BonusFormState {
   employee_id: string;
@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
   const [deptCreateMsg, setDeptCreateMsg] = useState<string | null>(null);
   const deptInputRef = useRef<HTMLInputElement | null>(null);
   const [employeesData, setEmployeesData] = useState<any[]>([]);
+  const [deptEmployees, setDeptEmployees] = useState<any[]>([]);
   const [pingResult, setPingResult] = useState<string | null>(null);
   const [deptTargetId, setDeptTargetId] = useState<string>('');
   const [deptNewName, setDeptNewName] = useState<string>('');
@@ -110,6 +111,23 @@ const Dashboard: React.FC = () => {
     }
   }
 
+  async function handleGenerateAndSendManagerCsv(managerIdOverride?: number) {
+    if (!me) return;
+    setActionMsg(null);
+    const year = Number(periodYear);
+    const month = Number(periodMonth);
+    const mid = managerIdOverride || me.id;
+    try {
+      // generate and persist the team CSV first
+      await generateManagerTeamAggregate(mid, year, month);
+      // then send the persisted CSV
+      await sendManagerAggregatedCsv(mid, year, month);
+      setActionMsg(`Team CSV generated and sent for manager ${mid} (${year}-${month}).`);
+    } catch (e: any) {
+      setActionMsg(`Error: ${e.message}`);
+    }
+  }
+
   function updateBonusField<K extends keyof BonusFormState>(field: K, value: string) {
     setBonusForm(prev => ({ ...prev, [field]: value }));
   }
@@ -138,7 +156,15 @@ const Dashboard: React.FC = () => {
   async function refreshBonuses() {
     setActionMsg(null);
     try {
-      const data = await listBonuses();
+      // Admins may request all bonuses or a specific employee's bonuses by setting targetEmployeeId.
+      // Managers are restricted server-side; to avoid accidental 403s we load department-scoped list when not admin.
+      let data;
+      if (isAdmin) {
+        data = targetEmployeeId ? await listBonuses(Number(targetEmployeeId)) : await listBonuses();
+      } else {
+        // manager or employee: call listBonuses() without params — backend will scope to department or self
+        data = await listBonuses();
+      }
       setBonuses(data);
       setActionMsg(`Loaded ${data.length} bonuses.`);
     } catch (e: any) {
@@ -206,6 +232,40 @@ const Dashboard: React.FC = () => {
   }
   async function fetchManagers() { try { const data = await listManagers(); setManagersData(data); setActionMsg('Managers loaded'); } catch { setActionMsg('Error loading managers'); } }
   async function fetchAllEmployees() { try { const data = await listAllEmployees(); setEmployeesData(data); setActionMsg(`Loaded ${data.length} employees`); } catch (e:any) { setActionMsg(`Error: ${e.message}`); } }
+  async function fetchDeptEmployees() {
+    try {
+      const data = await listDepartmentEmployees();
+      setDeptEmployees(data);
+      setActionMsg(`Loaded ${data.length} department employees`);
+    } catch (e: any) {
+      setActionMsg(`Error: ${e.message}`);
+    }
+  }
+
+  async function handleGeneratePdfFor(empId: number) {
+    setActionMsg(null);
+    try {
+      await generateEmployeePdf(empId);
+      setActionMsg('PDF generated and saved');
+      fetchDeptEmployees();
+    } catch (e:any) {
+      setActionMsg(`Error: ${e.message}`);
+    }
+  }
+
+  
+
+  async function handleSendPayslipFor(empId: number) {
+    setActionMsg(null);
+    try {
+      await sendEmployeePayslip(empId);
+      setActionMsg('Payslip sent');
+    } catch (e:any) {
+      setActionMsg(`Error: ${e.message}`);
+    }
+  }
+
+  
   async function pingApi() { setActionMsg(null); setPingResult(null); try { const data = await pingHealth(); setPingResult(JSON.stringify(data)); setActionMsg('API reachable'); } catch (e:any) { setActionMsg(`Error: ${e.message}`); setPingResult(null); } }
   async function fetchDepartmentManagers() { if (!deptManagersDeptId) return; try { const data = await listDepartmentManagers(Number(deptManagersDeptId)); setManagersData(data); setActionMsg('Dept managers loaded'); } catch { setActionMsg('Error loading dept managers'); } }
   async function fetchAttendance() { const year = Number(periodYear); const month = Number(periodMonth); try { const data = await listAttendance(year, month); setAttendanceData(data); setActionMsg('Attendance loaded'); } catch { setActionMsg('Error loading attendance'); } }
@@ -255,14 +315,26 @@ const Dashboard: React.FC = () => {
         {/* Base employee actions */}
         {isEmployee && (
           <>
-            <button onClick={() => handleSendPayslip()} style={btnStyle}>Send My Payslip</button>
-            <button onClick={() => handleSendAggregatedCsv()} style={btnStyle}>Send My Aggregated CSV</button>
+            {/* Employee actions */}
           </>
         )}
         {/* Manager/Admin actions */}
         {(isManager || isAdmin) && (
           <>
-            <button onClick={() => handleSendManagerCsv()} style={btnStyle}>Send My Team Aggregated CSV</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => {
+                // generate the team CSV (persist it)
+                if (!me) return;
+                const year = Number(periodYear);
+                const month = Number(periodMonth);
+                setActionMsg(null);
+                generateManagerTeamAggregate(me.id, year, month)
+                  .then(() => setActionMsg(`Team CSV generated for ${year}-${month}.`))
+                  .catch((e:any) => setActionMsg(`Error: ${e.message}`));
+              }} style={btnStyle}>Generate My Team CSV</button>
+
+              <button onClick={() => handleSendManagerCsv()} style={btnStyle}>Send My Team Aggregated CSV</button>
+            </div>
             <button onClick={refreshBonuses} style={btnStyle}>Load Bonuses (Dept/All)</button>
           </>
         )}
@@ -364,9 +436,13 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </section>
-            <section style={adminSectionStyle}>
-              <h4 style={sectionTitleStyle}>Attendance Management</h4>
+                          <button style={btnAdminAction} disabled={!targetEmployeeId || pdfLoading} onClick={downloadPdf}>{pdfLoading ? 'Downloading…' : 'Download Payslip PDF'}</button>
+                          <button style={btnAdminAction} disabled={!targetEmployeeId} onClick={fetchAggregate}>Load Aggregate Data</button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button style={btnAdminAction} onClick={refreshBonuses}>Load Bonuses</button>
+                            {!isAdmin && <small style={{ color: '#9fb6c8' }}>Managers see only bonuses for their department</small>}
+                          </div>
+                          <button style={btnAdminAction} onClick={pingApi}>Ping API</button>
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -390,6 +466,52 @@ const Dashboard: React.FC = () => {
             {/* Employee admin actions moved into Directory & Structure card per UX request */}
           </div>
           <p style={{ fontSize: 12, marginTop: '0.75rem', color: '#94a3b8' }}>Leave ID fields blank to act on your own user. Adjust year/month for period-specific emails.</p>
+        </div>
+      )}
+      {isManager && (
+        <div style={{ border: '1px solid #ddd', padding: '1rem', marginBottom: '1.5rem' }}>
+          <h3>Department Employees</h3>
+          <div style={{ marginBottom: 8 }}>
+            <button style={btnAdminAction} onClick={fetchDeptEmployees}>Load Dept Employees</button>
+          </div>
+          {deptEmployees.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>ID</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Role</th>
+                  <th style={thStyle}>Payslip</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deptEmployees.map((e:any) => (
+                  <tr key={e.id}>
+                    <td style={tdStyle}>{e.id}</td>
+                    <td style={tdStyle}>{e.first_name} {e.last_name}</td>
+                    <td style={tdStyle}>{e.role?.role || e.role}</td>
+                    <td style={tdStyle}>
+                      {e.payslip_exists ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 10, background: '#10b981', display: 'inline-block' }} />
+                          <small>{e.payslip_last_generated ? new Date(e.payslip_last_generated).toLocaleString() : 'Exists'}</small>
+                        </div>
+                      ) : (
+                        <small style={{ color: '#9ca3af' }}>-</small>
+                      )}
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button style={btnSmall} onClick={() => handleGeneratePdfFor(e.id)}>Generate PDF</button>
+                        <button style={{ ...btnSmall, background: '#0b84a5' }} onClick={() => handleSendPayslipFor(e.id)}>Send</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
       {isAdmin && (

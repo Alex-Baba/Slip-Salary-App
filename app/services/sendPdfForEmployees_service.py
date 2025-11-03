@@ -4,24 +4,25 @@ from .email_templates import build_payslip_subject, build_payslip_bodies
 from datetime import datetime
 import os, hashlib, time, io
 import pyzipper
-from django.test import RequestFactory
-from django.urls import reverse
 from app.db.models import Employee
-from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
+from app.services.createPdfForEmployees_service import get_payslip_filepath
+import os
+
 
 def fetch_payslip_pdf(employee_id: int) -> bytes:
-	"""Call the existing create_pdf endpoint internally to obtain the PDF bytes."""
+	"""Read the persisted payslip PDF for the current month.
+
+	Raises ValidationError if the file doesn't exist or the employee is missing.
+	"""
 	try:
 		Employee.objects.get(id=employee_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"employee_id": "Employee not found"})
-	factory = RequestFactory()
-	path = reverse('create-pdf-employees') + f"?employee_id={employee_id}"
-	request = factory.get(path)
-	response = CreatePdfEmployeesView.as_view()(request)
-	if response.status_code != 200:
-		raise ValidationError({"pdf": f"Failed to generate PDF: status {response.status_code}"})
-	return response.content
+	path = get_payslip_filepath(employee_id)
+	if not os.path.exists(path):
+		raise ValidationError({"pdf": "Payslip not found. Generate it first using ?generate=1 on the create_pdf endpoint."})
+	with open(path, 'rb') as fh:
+		return fh.read()
 
 def send_payslip_email(employee_id: int) -> dict:
 	"""Fetch existing payslip PDF and send via provider chain (SendGrid -> Django SMTP)."""

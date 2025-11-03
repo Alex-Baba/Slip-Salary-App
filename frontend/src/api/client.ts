@@ -187,10 +187,66 @@ export async function listManagers() {
   return res.json();
 }
 
+export async function listDepartmentEmployees() {
+  const url = `${API_BASE}/api/departments/my_employees/`;
+  const res = await safeFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to load department employees (${res.status})`);
+  return res.json();
+}
+
+export async function generateEmployeePdf(employeeId: number) {
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_pdf/`, { method: 'POST', headers: { ...authHeaders() } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate PDF');
+  return data;
+}
+
+export async function sendEmployeePayslip(employeeId: number) {
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/send_payslip/`, { method: 'POST', headers: { ...authHeaders() } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to send payslip');
+  return data;
+}
+
 export async function listDepartmentManagers(departmentId: number) {
   const url = `${API_BASE}/api/departments/${departmentId}/managers/`;
   const res = await safeFetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error(`Failed to load department managers (${res.status})`);
+  return res.json();
+}
+
+// Aggregated CSV generation/status helpers
+export async function generateEmployeeAggregate(employeeId: number, year?: number, month?: number) {
+  const body: any = {};
+  if (year) body.year = year;
+  if (month) body.month = month;
+  const res = await fetch(`${API_BASE}/api/employees/${employeeId}/generate_aggregate/`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate aggregate CSV');
+  return data;
+}
+
+export async function getEmployeeAggregateStatus(employeeId: number, year?: number, month?: number) {
+  const q = year ? `?year=${year}${month ? `&month=${month}` : ''}` : (month ? `?month=${month}` : '');
+  const res = await safeFetch(`${API_BASE}/api/employees/${employeeId}/aggregate_status/${q}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to fetch aggregate status (${res.status})`);
+  return res.json();
+}
+
+export async function generateManagerTeamAggregate(managerId: number, year?: number, month?: number) {
+  const body: any = {};
+  if (year) body.year = year;
+  if (month) body.month = month;
+  const res = await fetch(`${API_BASE}/api/managers/${managerId}/generate_team_aggregate/`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.model_errors ? JSON.stringify(data.model_errors) : 'Failed to generate manager aggregate CSV');
+  return data;
+}
+
+export async function getManagerAggregateStatus(managerId: number, year?: number, month?: number) {
+  const q = year ? `?year=${year}${month ? `&month=${month}` : ''}` : (month ? `?month=${month}` : '');
+  const res = await safeFetch(`${API_BASE}/api/managers/${managerId}/aggregate_status/${q}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to fetch manager aggregate status (${res.status})`);
   return res.json();
 }
 
