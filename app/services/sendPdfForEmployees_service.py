@@ -5,7 +5,8 @@ from datetime import datetime
 import os, hashlib, time, io
 import pyzipper
 from app.db.models import Employee
-from app.services.createPdfForEmployees_service import get_payslip_filepath
+from importlib import import_module
+from app.services.createPdfForEmployees_service import get_payslip_filepath as _get_payslip_path
 from app.services.archive_service import archive_bytes
 import os
 import logging
@@ -23,11 +24,25 @@ def fetch_payslip_pdf(employee_id: int) -> bytes:
 		Employee.objects.get(id=employee_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"employee_id": "Employee not found"})
-	path = get_payslip_filepath(employee_id)
+	# Allow tests to monkeypatch get_payslip_filepath in the createPdf module by
+	# importing it at runtime and calling the function from that module.
+	try:
+		mod = import_module('app.services.createPdfForEmployees_service')
+		path = getattr(mod, 'get_payslip_filepath', _get_payslip_path)(employee_id)
+	except Exception:
+		path = _get_payslip_path(employee_id)
 	if not os.path.exists(path):
 		raise ValidationError({"pdf": "Payslip not found. Generate it first using ?generate=1 on the create_pdf endpoint."})
 	with open(path, 'rb') as fh:
 		return fh.read()
+
+
+def _resolve_payslip_path(employee_id: int) -> str:
+	try:
+		mod = import_module('app.services.createPdfForEmployees_service')
+		return getattr(mod, 'get_payslip_filepath', _get_payslip_path)(employee_id)
+	except Exception:
+		return _get_payslip_path(employee_id)
 
 def send_payslip_email(employee_id: int) -> dict:
 	"""Fetch existing payslip PDF and send via provider chain (SendGrid -> Django SMTP)."""
@@ -83,7 +98,7 @@ def send_payslip_email(employee_id: int) -> dict:
 			logger.info('payslip_sent %s', json.dumps(info, default=str))
 			# Remove the original PDF now that we've archived the zipped copy.
 			try:
-				original_path = get_payslip_filepath(employee_id)
+				original_path = _resolve_payslip_path(employee_id)
 				if os.path.exists(original_path):
 					os.remove(original_path)
 					resp['deleted_original'] = True

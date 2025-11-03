@@ -61,7 +61,6 @@ class SendPayslipEmailView(APIView):
         else:
             # Authorization: if not manager and requesting someone else -> forbidden
             if employee_id_int != current.id:
-                from app.db.models import Employee
                 try:
                     target = Employee.objects.get(id=employee_id_int)
                 except Employee.DoesNotExist:

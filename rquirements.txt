@@ -9,3 +9,5 @@ django-cors-headers==4.9.0
 fpdf==1.7.2
 sendgrid==6.12.5
 pyzipper==0.3.6
+pytest==8.4.2
+pytest-django==4.5.2

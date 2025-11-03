@@ -94,7 +94,14 @@ def save_aggregate_csv(employee_id: int, csv_bytes: bytes, year: int | None = No
 
 
 def fetch_aggregate_csv(employee_id: int, year: int | None = None, month: int | None = None) -> bytes:
-	path = get_aggregate_filepath(employee_id, year, month)
+	# respect environment MEDIA_ROOT for tests using monkeypatch.setenv
+	base = os.getenv('MEDIA_ROOT') or getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
+	now = datetime.today()
+	y = year or now.year
+	m = month or now.month
+	directory = os.path.join(base, 'aggregates', f"{y}-{m:02d}")
+	filename = f"employee_{employee_id}_aggregate.csv"
+	path = os.path.join(directory, filename)
 	if not os.path.exists(path):
 		raise ValidationError({"csv": "Aggregated CSV not found. Generate it first using the generate endpoint."})
 	with open(path, 'rb') as fh:
@@ -199,7 +206,7 @@ def send_manager_aggregated_csv_email(manager_id: int, year: int | None = None, 
 	now = datetime.today()
 	y = year or now.year
 	m = month or now.month
-	base = getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
+	base = os.getenv('MEDIA_ROOT') or getattr(settings, 'MEDIA_ROOT', None) or os.path.join(settings.BASE_DIR, 'media')
 	dirpath = os.path.join(base, 'aggregates', f"{y}-{m:02d}")
 	filename = f"manager_{manager_id}_team_aggregate.csv"
 	path = os.path.join(dirpath, filename)
