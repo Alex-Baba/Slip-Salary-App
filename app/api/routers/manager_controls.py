@@ -60,13 +60,26 @@ class EmployeeGeneratePdfView(APIView):
         from app.services.auth_utils import can_manage_employee
         if not (employee_is_admin(actor) or can_manage_employee(actor, target)):
             return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-        try:
+        payload = {"employee_id": employee_id}
+        key = request.headers.get('Idempotency-Key') or request.headers.get('IDEMPOTENCY_KEY')
+
+        def build_response():
             pdf_bytes = create_pdf_for_employee(employee_id=employee_id)
             saved = save_payslip_pdf(employee_id, pdf_bytes)
-        except ValidationError as e:
-            details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
-            return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"saved_path": saved}, status=status.HTTP_200_OK)
+            return {"saved_path": saved}
+
+        if key:
+            from app.services.idempotency_service import get_or_create_idempotent
+            idem = get_or_create_idempotent('generate-employee-pdf', key, payload, build_response)
+            if idem.get('conflict'):
+                return Response(idem, status=status.HTTP_409_CONFLICT)
+            return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
+        else:
+            try:
+                return Response(build_response(), status=status.HTTP_200_OK)
+            except ValidationError as e:
+                details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
+                return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmployeeSendPayslipView(APIView):
@@ -82,9 +95,27 @@ class EmployeeSendPayslipView(APIView):
         from app.services.auth_utils import can_manage_employee
         if not (employee_is_admin(actor) or can_manage_employee(actor, target)):
             return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            resp = send_payslip_email(employee_id)
-        except ValidationError as e:
-            details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
-            return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(resp, status=status.HTTP_200_OK)
+        # support Idempotency-Key
+        key = request.headers.get('Idempotency-Key') or request.headers.get('IDEMPOTENCY_KEY')
+        payload = {"employee_id": employee_id}
+
+        def build_response():
+            return send_payslip_email(employee_id)
+
+        if key:
+            from app.services.idempotency_service import get_or_create_idempotent
+            try:
+                idem = get_or_create_idempotent('send-employee-payslip', key, payload, build_response)
+            except ValidationError as e:
+                details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
+                return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
+            if idem.get('conflict'):
+                return Response(idem, status=status.HTTP_409_CONFLICT)
+            return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
+        else:
+            try:
+                resp = send_payslip_email(employee_id)
+            except ValidationError as e:
+                details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
+                return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(resp, status=status.HTTP_200_OK)

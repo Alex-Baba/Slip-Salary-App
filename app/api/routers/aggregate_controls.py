@@ -29,14 +29,26 @@ class EmployeeGenerateAggregateView(APIView):
         month = request.data.get('month') or request.query_params.get('month')
         y_int = int(year) if year is not None else None
         m_int = int(month) if month is not None else None
-        try:
+        payload = {"employee_id": employee_id, "year": y_int, "month": m_int}
+        key = request.headers.get('Idempotency-Key') or request.headers.get('IDEMPOTENCY_KEY')
+        def build_response():
             aggregated = fetch_aggregated_employee_data(employee_id, y_int, m_int)
             csv_bytes = generate_employee_csv(aggregated)
             saved = save_aggregate_csv(employee_id, csv_bytes, y_int, m_int)
-        except ValidationError as e:
-            details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
-            return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"saved_path": saved}, status=status.HTTP_200_OK)
+            return {"saved_path": saved}
+
+        if key:
+            from app.services.idempotency_service import get_or_create_idempotent
+            idem = get_or_create_idempotent('generate-employee-aggregate', key, payload, build_response)
+            if idem.get('conflict'):
+                return Response(idem, status=status.HTTP_409_CONFLICT)
+            return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
+        else:
+            try:
+                return Response(build_response(), status=status.HTTP_200_OK)
+            except ValidationError as e:
+                details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
+                return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmployeeAggregateStatusView(APIView):
@@ -100,6 +112,18 @@ class ManagerGenerateTeamAggregateView(APIView):
         except ValidationError as e:
             details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
             return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)
+        # idempotency support
+        payload = {"manager_id": manager_id, "year": y_int, "month": m_int}
+        key = request.headers.get('Idempotency-Key') or request.headers.get('IDEMPOTENCY_KEY')
+        def build_response():
+            return {"saved_path": path}
+
+        if key:
+            from app.services.idempotency_service import get_or_create_idempotent
+            idem = get_or_create_idempotent('generate-manager-aggregate', key, payload, build_response)
+            if idem.get('conflict'):
+                return Response(idem, status=status.HTTP_409_CONFLICT)
+            return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
         return Response({"saved_path": path}, status=status.HTTP_200_OK)
 
 
