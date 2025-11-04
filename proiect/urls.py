@@ -29,7 +29,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from app.api.routers.manager import ManagerListView, DepartmentManagersView
 from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
-from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
+from app.api.routers.createAggregatedEmployeeData import (
+    AggregateEmployeeDataView,
+    EmployeeGenerateAggregateView, EmployeeAggregateStatusView,
+    ManagerGenerateTeamAggregateView, ManagerAggregateStatusView
+)
 from app.api.routers.bonus import BonusCreateView, BonusListView, BonusUpdateView, BonusDeleteView
 from app.api.routers.manager_controls import DepartmentMyEmployeesView, EmployeeGeneratePdfView, EmployeeSendPayslipView
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
@@ -39,10 +43,7 @@ from app.api.routers.auth import LogoutView
 from app.api.routers.me import MeView
 from app.api.routers.sendAggregatedCsvEmail import SendAggregatedCsvEmailView
 from app.api.routers.sendManagerAggregatedCsvEmail import SendManagerAggregatedCsvEmailView
-from app.api.routers.aggregate_controls import (
-    EmployeeGenerateAggregateView, EmployeeAggregateStatusView,
-    ManagerGenerateTeamAggregateView, ManagerAggregateStatusView
-)
+# aggregate controls merged into createAggregatedEmployeeData
 
 class RoleListView(APIView):
     def get(self, request):

@@ -2,15 +2,13 @@ from django.core.exceptions import ValidationError
 from app.services.email_provider_service import send_email
 from .email_templates import build_aggregate_subject, build_aggregate_bodies
 from datetime import datetime
-from django.test import RequestFactory
-from django.urls import reverse
 from io import StringIO
 import csv
 import os
 from django.conf import settings
 
 from app.db.models import Employee
-from app.api.routers.aggregateEmployeeData import AggregateEmployeeDataView
+from app.services.aggregateEmployeeData_service import generate_aggregate_employee_report
 from app.services.archive_service import archive_bytes
 from io import BytesIO
 import zipfile
@@ -27,20 +25,13 @@ def fetch_aggregated_employee_data(employee_id: int, year: int | None = None, mo
 		Employee.objects.get(id=employee_id)
 	except Employee.DoesNotExist:
 		raise ValidationError({"employee_id": "Employee not found"})
-	factory = RequestFactory()
-	params = {}
-	if year is not None:
-		params['year'] = str(year)
-	if month is not None:
-		params['month'] = str(month)
-	params['employee_id'] = str(employee_id)
-	query = '?' + '&'.join(f"{k}={v}" for k,v in params.items())
-	path = reverse(AGGREGATE_ENDPOINT_NAME) + query
-	request = factory.get(path)
-	response = AggregateEmployeeDataView.as_view()(request)
-	if response.status_code != 200:
-		raise ValidationError({"aggregate": f"Failed to fetch aggregation: status {response.status_code}"})
-	return response.data
+	# Call the aggregation service directly to avoid an import cycle with routers
+	try:
+		data = generate_aggregate_employee_report(employee_id=employee_id, year=year, month=month)
+		return data
+	except Exception as e:
+		# Map service exceptions to ValidationError for callers
+		raise ValidationError({"aggregate": f"Failed to fetch aggregation: {str(e)}"})
 
 def generate_employee_csv(aggregated: dict) -> bytes:
 	"""Generate a CSV representation of aggregated employee data."""
