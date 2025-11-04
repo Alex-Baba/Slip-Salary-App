@@ -2,12 +2,16 @@ import os, jwt
 from typing import Optional
 from django.core.exceptions import PermissionDenied
 from app.db.models import Employee, EmployeeRole
+from app.db.models import RevokedToken
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'dev_jwt_secret')
 JWT_ALG = 'HS256'
 
 def decode_token(token: str) -> dict:
     try:
+        # Reject tokens that have been revoked
+        if RevokedToken.objects.filter(token=token).exists():
+            raise PermissionDenied("Token revoked")
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
     except jwt.ExpiredSignatureError:
         raise PermissionDenied("Token expired")

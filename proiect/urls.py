@@ -35,6 +35,7 @@ from app.api.routers.manager_controls import DepartmentMyEmployeesView, Employee
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
 from app.api.routers.sendPdfToEmployees import SendPayslipEmailView
 from app.api.routers.auth import LoginView
+from app.api.routers.auth import LogoutView
 from app.api.routers.me import MeView
 from app.api.routers.sendAggregatedCsvEmail import SendAggregatedCsvEmailView
 from app.api.routers.sendManagerAggregatedCsvEmail import SendManagerAggregatedCsvEmailView
@@ -81,6 +82,7 @@ urlpatterns = [
     path('api/employees/send_payslip_email/', SendPayslipEmailView.as_view(), name='send-payslip-email'),
     path('api/auth/login/', LoginView.as_view(), name='login'),
     path('api/auth/me/', MeView.as_view(), name='me'),
+    path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('api/employees/send_aggregated_csv_email/', SendAggregatedCsvEmailView.as_view(), name='send-aggregated-csv-email'),
     path('api/employees/send_manager_aggregated_csv_email/', SendManagerAggregatedCsvEmailView.as_view(), name='send-manager-aggregated-csv-email'),
 ]

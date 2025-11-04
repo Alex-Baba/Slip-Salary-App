@@ -63,6 +63,12 @@ export async function fetchMe(): Promise<MeResponse> {
   return res.json();
 }
 
+export async function logout(): Promise<void> {
+  const headers: Record<string,string> = { 'Content-Type': 'application/json', ...authHeaders() };
+  // Best-effort: call backend logout to revoke token; ignore errors to ensure client clears local state.
+  await fetch(`${API_BASE}/api/auth/logout/`, { method: 'POST', headers }).catch(() => undefined);
+}
+
 // Endpoint helpers (POST for actions) - all wrapped with auth & simple status handling.
 async function postEndpoint(path: string, body: any): Promise<any> {
   const headers: Record<string,string> = {

@@ -17,8 +17,10 @@ from .salary import Salary
 from .attendance import Attendance
 from .bonus import Bonus
 from .idempotency import IdempotencyRecord
+from .revoked_token import RevokedToken
 
 __all__ = [
     'current_year', 'current_month',
     'Employee', 'EmployeeRole', 'Department', 'Salary', 'Attendance', 'Bonus', 'IdempotencyRecord'
+    , 'RevokedToken'
 ]

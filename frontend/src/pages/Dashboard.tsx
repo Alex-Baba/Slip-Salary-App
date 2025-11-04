@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, generateManagerTeamAggregate, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment, listDepartmentEmployees, generateEmployeePdf, sendEmployeePayslip } from '../api/client';
+import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, generateManagerTeamAggregate, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment, listDepartmentEmployees, generateEmployeePdf, sendEmployeePayslip, logout as apiLogout } from '../api/client';
 
 interface BonusFormState {
   employee_id: string;
@@ -316,8 +316,13 @@ const Dashboard: React.FC = () => {
         <div>
           <span style={{ marginRight: 12 }}>Welcome {me.first_name} {me.last_name} ({me.role || 'no-role'})</span>
           <button
-            onClick={() => {
-              // clear auth token and navigate to login so user can switch accounts
+            onClick={async () => {
+              // call backend to revoke token, then clear client state and navigate to login
+              try {
+                await apiLogout();
+              } catch (e) {
+                // ignore errors; still clear token locally
+              }
               localStorage.removeItem('auth_token');
               navigate('/login');
             }}

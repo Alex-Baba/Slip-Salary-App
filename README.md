@@ -69,6 +69,13 @@ Visit http://localhost:5173 to view the login page.
 - Add employee/attendance management UI.
 - Improve styling (Tailwind or component library).
 - Add logout & refresh token flow.
+
+Note: after adding a new `RevokedToken` model (used to revoke JWTs on logout) run Django migrations locally and in your deployment:
+
+	python manage.py makemigrations
+	python manage.py migrate
+
+This will create the table used to store revoked tokens so the `/api/auth/logout/` endpoint works correctly.
 - Extend email flows (multi-employee batch sending, HTML templates).
 
 ## Email Sending (SendGrid Priority)
