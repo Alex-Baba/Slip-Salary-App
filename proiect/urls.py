@@ -27,7 +27,7 @@ from app.api.routers.department import (
 from app.db.models import EmployeeRole
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from app.api.routers.manager import ManagerListView, DepartmentManagersView
+from app.api.routers.manager import ManagerListView, DepartmentManagersView, DepartmentMyEmployeesView, EmployeeGeneratePdfView, EmployeeSendPayslipView
 from app.api.routers.attendance import AttendanceUpsertView, AttendanceUpdateView, AttendanceListView
 from app.api.routers.createAggregatedEmployeeData import (
     AggregateEmployeeDataView,
@@ -35,7 +35,7 @@ from app.api.routers.createAggregatedEmployeeData import (
     ManagerGenerateTeamAggregateView, ManagerAggregateStatusView
 )
 from app.api.routers.bonus import BonusCreateView, BonusListView, BonusUpdateView, BonusDeleteView
-from app.api.routers.manager_controls import DepartmentMyEmployeesView, EmployeeGeneratePdfView, EmployeeSendPayslipView
+# manager controls merged into manager
 from app.api.routers.createPdfEmployees import CreatePdfEmployeesView
 from app.api.routers.sendPdfToEmployees import SendPayslipEmailView
 from app.api.routers.auth import LoginView
