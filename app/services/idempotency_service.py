@@ -9,14 +9,19 @@ def _hash_payload(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(data).hexdigest()
 
 @transaction.atomic
-def get_or_create_idempotent(endpoint: str, key: str, request_payload: Dict[str, Any], response_builder) -> Dict[str, Any]:
+def get_or_create_idempotent(endpoint: str, key: str, request_payload: Dict[str, Any], response_builder, owner=None) -> Dict[str, Any]:
     """Return existing stored response if key exists & payload matches; otherwise create.
 
     response_builder: callable returning fresh response dict if not cached.
     """
     payload_hash = _hash_payload(request_payload)
     try:
-        record = IdempotencyRecord.objects.select_for_update().get(endpoint=endpoint, key=key)
+        qs = IdempotencyRecord.objects.select_for_update().filter(endpoint=endpoint, key=key)
+        if owner is None:
+            qs = qs.filter(owner__isnull=True)
+        else:
+            qs = qs.filter(owner=owner)
+        record = qs.get()
         if record.request_hash != payload_hash:
             # Payload changed under same key -> treat as conflict
             return {
@@ -33,6 +38,7 @@ def get_or_create_idempotent(endpoint: str, key: str, request_payload: Dict[str,
         record = IdempotencyRecord(
             endpoint=endpoint,
             key=key,
+            owner=owner,
             request_hash=payload_hash,
             response_json=fresh,
         )

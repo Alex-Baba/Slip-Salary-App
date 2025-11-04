@@ -53,7 +53,7 @@ def test_send_manager_aggregate_with_idempotency(monkeypatch):
     monkeypatch.setattr('app.api.routers.sendManagerAggregatedCsvEmail.employee_is_admin', lambda caller: False)
 
     # Monkeypatch idempotency service to return cached-like structure
-    def fake_get_or_create(endpoint, key, payload, builder):
+    def fake_get_or_create(endpoint, key, payload, builder, owner=None):
         return {'data': {'archive_path': '/fake/path.zip'}, 'idempotent': True, 'cached': False}
     monkeypatch.setattr('app.api.routers.sendManagerAggregatedCsvEmail.get_or_create_idempotent', fake_get_or_create)
 

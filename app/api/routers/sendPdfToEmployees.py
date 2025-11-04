@@ -37,7 +37,8 @@ class SendPayslipEmailView(APIView):
                 endpoint='send-payslip',
                 key=key,
                 request_payload={'employee_id': employee_id_int},
-                response_builder=build_response
+                response_builder=build_response,
+                owner=current,
             )
             if idem_result.get('conflict'):
                 return Response(idem_result, status=status.HTTP_409_CONFLICT)

@@ -69,7 +69,7 @@ class EmployeeGenerateAggregateView(APIView):
 
         if key:
             from app.services.idempotency_service import get_or_create_idempotent
-            idem = get_or_create_idempotent('generate-employee-aggregate', key, payload, build_response)
+            idem = get_or_create_idempotent('generate-employee-aggregate', key, payload, build_response, owner=actor)
             if idem.get('conflict'):
                 return Response(idem, status=status.HTTP_409_CONFLICT)
             return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
@@ -150,7 +150,7 @@ class ManagerGenerateTeamAggregateView(APIView):
 
         if key:
             from app.services.idempotency_service import get_or_create_idempotent
-            idem = get_or_create_idempotent('generate-manager-aggregate', key, payload, build_response)
+            idem = get_or_create_idempotent('generate-manager-aggregate', key, payload, build_response, owner=actor)
             if idem.get('conflict'):
                 return Response(idem, status=status.HTTP_409_CONFLICT)
             return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)

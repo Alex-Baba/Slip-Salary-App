@@ -47,7 +47,7 @@ class SendManagerAggregatedCsvEmailView(APIView):
 				details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
 				raise ValidationError(details)
 		if key:
-			idem = get_or_create_idempotent('send-manager-aggregate', key, payload, build_response)
+			idem = get_or_create_idempotent('send-manager-aggregate', key, payload, build_response, owner=caller)
 			if idem.get('conflict'):
 				return Response(idem, status=status.HTTP_409_CONFLICT)
 			result = idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}

@@ -47,7 +47,8 @@ class SendAggregatedCsvEmailView(APIView):
                 endpoint='send-aggregate',
                 key=key,
                 request_payload=payload,
-                response_builder=build_response
+                response_builder=build_response,
+                owner=current,
             )
             if idem_result.get('conflict'):
                 return Response(idem_result, status=status.HTTP_409_CONFLICT)

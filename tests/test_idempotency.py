@@ -11,7 +11,7 @@ def test_idempotency_cached_response(monkeypatch):
     monkeypatch.setattr('app.api.routers.sendPdfToEmployees.get_current_employee', lambda req: Caller())
 
     # Simulate idempotency returning cached data
-    def fake_get_or_create(endpoint, key, request_payload, response_builder):
+    def fake_get_or_create(endpoint, key, request_payload, response_builder, owner=None):
         return {'data': {'provider_response': {'sent': True}}, 'idempotent': True, 'cached': True}
 
     monkeypatch.setattr('app.api.routers.sendPdfToEmployees.get_or_create_idempotent', fake_get_or_create)
@@ -38,7 +38,7 @@ def test_idempotency_conflict(monkeypatch):
     monkeypatch.setattr('app.api.routers.sendPdfToEmployees.get_current_employee', lambda req: Caller())
 
     # Simulate idempotency conflict
-    def fake_get_or_create_conflict(endpoint, key, request_payload, response_builder):
+    def fake_get_or_create_conflict(endpoint, key, request_payload, response_builder, owner=None):
         return {'conflict': True, 'message': 'Conflict detected'}
 
     monkeypatch.setattr('app.api.routers.sendPdfToEmployees.get_or_create_idempotent', fake_get_or_create_conflict)

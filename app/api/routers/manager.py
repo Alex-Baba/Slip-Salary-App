@@ -76,7 +76,7 @@ class EmployeeGeneratePdfView(APIView):
 
         if key:
             from app.services.idempotency_service import get_or_create_idempotent
-            idem = get_or_create_idempotent('generate-employee-pdf', key, payload, build_response)
+            idem = get_or_create_idempotent('generate-employee-pdf', key, payload, build_response, owner=actor)
             if idem.get('conflict'):
                 return Response(idem, status=status.HTTP_409_CONFLICT)
             return Response(idem['data'] | {"idempotent": idem['idempotent'], "cached": idem['cached']}, status=status.HTTP_200_OK)
@@ -111,7 +111,7 @@ class EmployeeSendPayslipView(APIView):
         if key:
             from app.services.idempotency_service import get_or_create_idempotent
             try:
-                idem = get_or_create_idempotent('send-employee-payslip', key, payload, build_response)
+                idem = get_or_create_idempotent('send-employee-payslip', key, payload, build_response, owner=actor)
             except ValidationError as e:
                 details = e.message_dict if hasattr(e, 'message_dict') else {"detail": str(e)}
                 return Response({"model_errors": details}, status=status.HTTP_400_BAD_REQUEST)

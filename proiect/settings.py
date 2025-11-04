@@ -48,13 +48,13 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'app.middleware.request_logging.RequestLoggingMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'app.middleware.request_logging.RequestLoggingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -180,7 +180,9 @@ LOGGING = {
             'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
         },
         'request': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s | %(request_log)s'
+            # Emit the middleware-produced JSON blob directly so each line is a single JSON object
+            '()': 'app.logging.formatters.SafeRequestFormatter',
+            'format': '%(request_log)s'
         },
     },
     'handlers': {
