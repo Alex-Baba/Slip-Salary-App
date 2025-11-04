@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchMe, sendPayslip, sendAggregatedCsv, sendManagerAggregatedCsv, generateManagerTeamAggregate, createBonus, listBonuses, createEmployee, listRoles, listDepartments, createDepartment as apiCreateDepartment, listManagers, listDepartmentManagers, listAttendance, updateAttendance as apiUpdateAttendance, deleteEmployee as apiDeleteEmployee, aggregateEmployee, downloadEmployeePdf, listAllEmployees, pingHealth, updateDepartment, deleteDepartment, listDepartmentEmployees, generateEmployeePdf, sendEmployeePayslip } from '../api/client';
 
 interface BonusFormState {
@@ -9,6 +10,7 @@ interface BonusFormState {
 }
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [me, setMe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -309,8 +311,22 @@ const Dashboard: React.FC = () => {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <h2>Dashboard</h2>
-      <p>Welcome {me.first_name} {me.last_name} ({me.role || 'no-role'})</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0 }}>Dashboard</h2>
+        <div>
+          <span style={{ marginRight: 12 }}>Welcome {me.first_name} {me.last_name} ({me.role || 'no-role'})</span>
+          <button
+            onClick={() => {
+              // clear auth token and navigate to login so user can switch accounts
+              localStorage.removeItem('auth_token');
+              navigate('/login');
+            }}
+            style={{ padding: '6px 10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
         {/* Base employee actions */}
         {isEmployee && (
