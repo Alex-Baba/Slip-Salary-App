@@ -77,8 +77,12 @@ def create_pdf_for_employee(employee_id: int) -> bytes:
     pdf.set_font("Arial", size=12)
     pdf.cell(0, 8, txt=f"Employee: {employee.first_name} {employee.last_name}", ln=True)
     pdf.cell(0, 8, txt=f"Role: {employee.role.role}", ln=True)
-    if employee.department:
+    # Include department and CNP on the payslip as requested
+    if getattr(employee, 'department', None):
         pdf.cell(0, 8, txt=f"Department: {employee.department.name}", ln=True)
+    # CNP is stored on Employee model as `cnp`
+    if getattr(employee, 'cnp', None):
+        pdf.cell(0, 8, txt=f"CNP: {employee.cnp}", ln=True)
     pdf.ln(4)
 
     pdf.set_font("Arial", "B", 12)
@@ -87,8 +91,6 @@ def create_pdf_for_employee(employee_id: int) -> bytes:
     pdf.cell(0, 8, txt=f"Working days: {working_days}", ln=True)
     pdf.cell(0, 8, txt=f"Vacation days: {leave_days}", ln=True)
     pdf.cell(0, 8, txt=f"Additional bonuses: {total_bonus:.2f}", ln=True)
-    pdf.cell(0, 8, txt=f"Salary to be paid (EUR): {total_salary:.2f}", ln=True)
-    pdf.ln(4)
 
     if bonuses:
         pdf.set_font("Arial", "B", 12)
@@ -96,6 +98,12 @@ def create_pdf_for_employee(employee_id: int) -> bytes:
         pdf.set_font("Arial", size=11)
         for line in bonuses:
             pdf.multi_cell(0, 6, txt=line)
+
+    pdf.cell(0, 8, txt="Salary Detail", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.cell(0, 8, txt=f"Salary to be paid (EUR): {total_salary:.2f}", ln=True)
+    pdf.ln(4)
+
 
     # Footer
     pdf.set_y(-30)
