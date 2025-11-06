@@ -65,7 +65,7 @@ class EmployeeGeneratePdfView(APIView):
         # Reuse can_manage_employee from auth_utils: manager must be same department
         from app.services.auth_utils import can_manage_employee
         if not (employee_is_admin(actor) or can_manage_employee(actor, target)):
-            return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "You don't have permission to generate a pdf for this employee"}, status=status.HTTP_403_FORBIDDEN)
         payload = {"employee_id": employee_id}
         key = request.headers.get('Idempotency-Key') or request.headers.get('IDEMPOTENCY_KEY')
 

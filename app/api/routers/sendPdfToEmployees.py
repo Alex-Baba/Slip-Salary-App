@@ -67,7 +67,7 @@ class SendPayslipEmailView(APIView):
                 except Employee.DoesNotExist:
                     return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
                 if not can_manage_employee(current, target):
-                    return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+                    return Response({"error": "You don't have permission to generate a pdf for this employee"}, status=status.HTTP_403_FORBIDDEN)
             try:
                 result = send_payslip_email(employee_id_int)
             except ValidationError as e:

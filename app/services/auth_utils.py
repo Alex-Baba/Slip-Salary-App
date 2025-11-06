@@ -68,16 +68,31 @@ def require_admin_or_manager(request):
     raise PermissionDenied("Manager or Admin privileges required")
 
 def can_manage_employee(actor: Employee, target: Employee) -> bool:
-    """Return True if actor can manage target per RBAC rules.
-    Admin: any employee.
-    Manager: employees within same department (optionally could narrow to subordinates; using department per requirement).
+    """Return True when `actor` may manage `target`.
+
+    Rules implemented:
+    - actor may act on themselves
+    - admins may act on anyone
+    - a manager may act only on direct reports (i.e. when target.manager_id == actor.id)
+
+    This tightens previous logic which allowed any manager in the same department
+    to manage all employees in that department.
     """
+    if actor is None or target is None:
+        return False
+
+    # allow operating on yourself
     if actor.id == target.id:
-        return True  # self
+        return True
+
+    # admins can manage anyone
     if employee_is_admin(actor):
         return True
-    if employee_is_manager(actor) and actor.department_id and actor.department_id == target.department_id:
+
+    # managers may manage only their direct reports
+    if employee_is_manager(actor) and target.manager_id == actor.id:
         return True
+
     return False
 
 __all__ = [
