@@ -1,12 +1,74 @@
 # Proiect Payroll System
+This repository contains a small payroll web application (Django + DRF backend, Vite + React frontend) used for generating and sending monthly payslips and aggregated CSV reports. It supports bonuses, attendance-based prorated salary calculations, idempotent actions (Idempotency-Key), and structured request logging.
 
-Backend: Django + PostgreSQL (Docker) providing employee management, attendance, salary aggregation, bonuses, payslip PDF & CSV emailing, and JWT authentication.
+## Quick summary
+- Backend: Django (DRF) with services organized under `app/services` and routers under `app/api/routers`.
+- Frontend: Vite + React in `frontend/` with simple admin dashboard at `frontend/src/pages/Dashboard.tsx`.
+- Persistence: PostgreSQL expected in production (Docker compose used during development/testing).
 
-Frontend: React (Vite + TypeScript) starting with a login page consuming the JWT auth endpoint.
+## Getting started (development)
+These are minimal steps to get the project running locally for development. Adjust environment variables as needed.
 
-## Backend Setup
+# Slip Salary App — Detailed README
 
-1. Copy `.env.example` (if present) to `.env` or create `.env` with at least:
+This file documents how to run, develop, and use the Slip Salary payroll app (Django backend + React frontend). It includes setup instructions, common endpoints with examples, idempotency guidance, RBAC rules, logging, and troubleshooting.
+
+Table of contents
+- About
+- Quick start (development)
+	- Prerequisites
+	- Backend setup
+	- Frontend setup
+	- Optional: Docker compose
+- Project layout
+- Endpoints & examples
+	- Authentication
+	- Employee / payslip (PDF)
+	- Aggregated CSV (create/send)
+	- Manager / batch endpoints
+	- Bonus management
+- Idempotency and client guidance
+- RBAC and permissions
+- Logging & audit
+- Troubleshooting
+- Tests & contributing
+
+---
+
+About
+
+Slip Salary provides a lightweight payroll stack used to:
+- Generate per-employee payslip PDFs
+- Generate aggregated employee CSVs (per employee & per manager/team)
+- Send payslips and aggregates via email
+- Track bonuses and attendance
+
+Quick start (development)
+
+Prerequisites
+- Python 3.11+
+- Node 16+
+- PostgreSQL for realistic development (sqlite may be used for quick testing)
+- Docker & Docker Compose (optional, recommended for parity)
+
+Backend setup
+
+1) Create & activate a virtual environment
+
+```powershell
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+```
+
+2) Install Python requirements
+
+```powershell
+pip install -r rquirements.txt
+```
+
+3) Environment
+
+Copy `.env.example` to `.env` (if present) and set at least these values:
+
 ```
 DJANGO_SECRET_KEY=change_me
 DEBUG=1
@@ -15,101 +77,137 @@ JWT_SECRET=change_me_jwt
 JWT_EXP_MINUTES=60
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 ```
-For production add DB credentials and real email settings.
 
-2. Build & start services (adjust path if needed):
-Use Docker compose (ensure a service for web and db exists; not shown here). If not yet created, you can run `docker build -t proiect-backend .` then `docker run -p 8000:8000 proiect-backend`.
+4) Migrate & create superuser
 
-3. Apply migrations:
-`python manage.py migrate`
-
-4. Create a superuser (optional for admin):
-`python manage.py createsuperuser`
-
-5. Run development server:
-`python manage.py runserver 0.0.0.0:8000`
-
-## Authentication
-
-Endpoint: `POST /api/auth/login/` with JSON body:
-```
-{"email": "user@example.com", "password": "plain_or_hashed"}
-```
-Returns:
-```
-{"token": "<jwt>", "user_id": 1}
-```
-Store token client side (localStorage) and send `Authorization: Bearer <token>` for protected future endpoints.
-
-## CORS
-
-Configured to allow origin `http://localhost:5173` (Vite dev). Override via env `FRONTEND_ORIGIN`.
-
-## Frontend Setup
-
-1. Navigate to `frontend/`
-2. Copy `.env.example` to `.env` if you need to override API base (default `http://localhost:8000`).
-3. Install dependencies:
-`npm install`
-4. Start dev server:
-`npm run dev`
-
-Visit http://localhost:5173 to view the login page.
-
-## Frontend Structure
-
-`src/pages/Login.tsx` - Login form calling backend.
-`src/components/ProtectedRoute.tsx` - Simple auth guard.
-`src/pages/Dashboard.tsx` - Placeholder secured page.
-`src/api/client.ts` - Fetch helpers.
-
-## Next Steps
-
-- Implement token verification & protected backend endpoints.
-- Add employee/attendance management UI.
-- Improve styling (Tailwind or component library).
-- Add logout & refresh token flow.
-
-Note: after adding a new `RevokedToken` model (used to revoke JWTs on logout) run Django migrations locally and in your deployment:
-
-	python manage.py makemigrations
-	python manage.py migrate
-
-This will create the table used to store revoked tokens so the `/api/auth/logout/` endpoint works correctly.
-- Extend email flows (multi-employee batch sending, HTML templates).
-
-## Email Sending (SendGrid Priority)
-
-Email provider priority chain: SendGrid > Django SMTP backend.
-
-If `SENDGRID_API_KEY` is set, emails (payslip PDFs and aggregated CSV reports) are sent via SendGrid. If absent or SendGrid fails, we fall back to Django's configured SMTP backend.
-
-Environment variables:
-```
-SENDGRID_API_KEY=SG.xxxxxx_actual_api_key
-SENDGRID_FROM_EMAIL=payroll@yourdomain.com
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.yourprovider.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=your_smtp_user
-EMAIL_HOST_PASSWORD=your_smtp_password_or_app_password
-EMAIL_USE_TLS=1
-DEFAULT_FROM_EMAIL=payroll@yourdomain.com
+```powershell
+python manage.py migrate
+python manage.py createsuperuser
 ```
 
-Setup notes:
-- For Gmail, use an App Password (2FA required) for `EMAIL_HOST_PASSWORD`.
-- For higher deliverability, set SPF/DKIM records on your domain (SendGrid documentation provides DNS entries).
-- Attachments are sent as standard MIME attachments (PDF for payslips, CSV for aggregated data).
+5) Run backend
 
-Fallback behavior:
-- If SendGrid is not configured or returns a non-success status, the system automatically attempts Django SMTP.
+```powershell
+python manage.py runserver
+```
 
-Extensibility:
-- The provider abstraction (`email_provider_service.py`) allows adding more providers later with minimal changes.
+Frontend setup
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Optional: Docker compose
+
+If you want containers, create/adjust `docker-compose.yml` (web + db). Example commands:
+
+```powershell
+docker compose build
+docker compose up
+```
+
+Project layout
+
+- `app/` - Django app
+	- `api/routers/` - DRF endpoints
+	- `services/` - business logic (PDF/CSV generation, salary computation, idempotency, email providers)
+	- `db/models/` - Django models
+	- `middleware/` - request logging middleware
+- `frontend/` - Vite + React
+- `media/` - generated artifacts (payslips, aggregates)
+- `logs/` - structured JSON logs
+
+Endpoints & examples
+
+Authentication
+
+- POST `/api/auth/login/`
+	- Body: {"email": "user@example.com", "password": "secret"}
+	- Response: {"token": "<jwt>", "user_id": 1}
+
+Example (curl):
+
+```bash
+curl -X POST "http://localhost:8000/api/auth/login/" \
+	-H "Content-Type: application/json" \
+	-d '{"email":"admin@example.com","password":"secret"}'
+```
+
+Employee / payslip (PDF)
+
+- POST `/api/employees/<id>/generate_pdf/` — generate & save PDF (Idempotency-Key supported)
+- POST `/api/employees/<id>/send_payslip/` — send the payslip via email (Idempotency-Key supported)
+
+Example generate PDF (curl):
+
+```bash
+curl -X POST "http://localhost:8000/api/employees/42/generate_pdf/" \
+	-H "Authorization: Bearer <token>" \
+	-H "Idempotency-Key: $(uuidgen)"
+```
+
+Aggregated CSV (create/send)
+
+- POST `/api/employees/<id>/generate_aggregate/` — generate & save CSV for employee `<id>` for specified `year`/`month` (defaults to current month)
+- POST `/api/employees/<id>/send_aggregated_csv/` — send the generated CSV by email
+
+Manager / batch endpoints (important)
+
+These are the manager/team oriented endpoints you asked to highlight:
+
+- POST `/api/employees/create_aggregated_employee_data/` (or `/createAggregatedEmployeeData`) — generates employee Excel/CSV for a period (saved to `media/aggregates/<year>-<month>/`).
+- POST `/api/employees/send_aggregated_employee_data/` (or `/sendAggregatedEmployeeData`) — sends the generated CSV via email and archives it.
+- POST `/api/employees/create_pdf_for_employees/` (or `/createPdfForEmployees`) — generates and saves PDF payslips for an employee for the period.
+- POST `/api/employees/send_pdf_to_employees/` (or `/sendPdfToEmployees`) — sends generated PDF payslips to employees; supports `Idempotency-Key`.
+
+Note: exact path strings live in `app/api/routers/`; the frontend client (`frontend/src/api/client.ts`) contains wrappers you can reuse.
+
+Bonus management
+
+- POST `/api/bonuses/create/` — body: { employee_id, amount, description, date }
+- GET `/api/bonuses/list/?employee_id=<id>` — list bonuses (scoped per RBAC)
+
+Idempotency and client guidance
+
+Use `Idempotency-Key` for any potentially repeated user action that would create a persistent side-effect (sends, generations). Recommendations:
+- Generate a UUID v4 per user-facing action and include it in the `Idempotency-Key` header.
+- Retry network errors using the same key — backend will return the cached response or indicate conflict.
+- Keys are owner-scoped; a key used by alice cannot be used by bob to retrieve alice's result.
+
+RBAC and permissions
+
+- Admin: full access
+- Manager: can act only on direct reports (i.e., `target.manager_id == actor.id`)
+- Employee: can act on themselves
+
+Logging & audit
+
+Requests and send actions are logged in structured JSON files under `logs/`:
+- `logs/requests.log` — request-level structured logs with `actor_id` and `owner_id` filled by middleware
+- `logs/send.log` — records of send/archive actions
+
+Common troubleshooting
+
+- Bonus not appearing in generated output: verify the bonus `date` is in the target period. Generation defaults to the current month when no `year`/`month` are provided.
+- Forbidden/403: check that the actor actually manages the target employee (direct-report rule). Admins bypass this restriction.
+- Missing PDFs/CSVs: check `media/payslips/` and `media/aggregates/` for saved files and `logs/send.log` for archive/send details.
+
+Tests & contributing
+
+- Run tests (project-specific): `python manage.py test` or `pytest` if configured.
+- Lint and formatting: follow project conventions.
+
+Next steps I can take for you
+
+- Create `docs/IDEMPOTENCY.md` with concrete client examples (curl, JS, Python) and best practices.
+- Add example `curl` snippets for the manager endpoints including `Idempotency-Key` usage.
+- Provide a `docker-compose.yml` example to run Postgres + backend + frontend locally.
+
+---
+
+If you want any of the next steps implemented, tell me which one and I will add it.
 
 
-## Notes
-
-This is an early integration of the frontend; PDF/CSV email endpoints exist but not yet wired into the UI.
 
