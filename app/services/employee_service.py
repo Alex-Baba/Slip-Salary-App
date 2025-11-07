@@ -97,6 +97,12 @@ def serialize_employee(employee: Employee) -> EmployeeSchema:
 		cnp=employee.cnp,
 		role=EmployeeRoleSchema(id=employee.role.id, role=employee.role.role),
 		manager_id=employee.manager.id if employee.manager else None,
+		manager=(None if not employee.manager else {
+			"id": employee.manager.id,
+			"first_name": employee.manager.first_name,
+			"last_name": employee.manager.last_name,
+			"department_name": employee.manager.department.name if employee.manager.department else None,
+		}),
 		department_id=employee.department.id if employee.department else None,
 		base_salary=float(employee.base_salary),
 		expected_working_days=employee.expected_working_days,

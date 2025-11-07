@@ -27,6 +27,8 @@ class EmployeeSchema(BaseModel):
     cnp: str
     role: EmployeeRoleSchema
     manager_id: Optional[int] = None
+    # Inline manager summary for UI convenience
+    manager: Optional[ManagerListSchema] = None
     department_id: Optional[int] = None
     base_salary: float
     expected_working_days: Optional[int] = None
@@ -59,6 +61,8 @@ class EmployeeListSchema(BaseModel):
     last_name: str
     role: EmployeeRoleSchema
     manager_id: Optional[int] = None
+    # Include lightweight manager summary in listings
+    manager: Optional[ManagerListSchema] = None
     department_id: Optional[int] = None
 
     class Config:

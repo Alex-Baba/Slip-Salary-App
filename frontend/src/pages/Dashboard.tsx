@@ -502,6 +502,7 @@ const Dashboard: React.FC = () => {
                   <th style={thStyle}>ID</th>
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Role</th>
+                  <th style={thStyle}>Manager</th>
                   <th style={thStyle}>Payslip</th>
                   <th style={thStyle}>Actions</th>
                 </tr>
@@ -512,6 +513,7 @@ const Dashboard: React.FC = () => {
                     <td style={tdStyle}>{e.id}</td>
                     <td style={tdStyle}>{e.first_name} {e.last_name}</td>
                     <td style={tdStyle}>{e.role?.role || e.role}</td>
+                    <td style={tdStyle}>{e.manager ? `${e.manager.first_name} ${e.manager.last_name}` : '-'}</td>
                     <td style={tdStyle}>
                       {e.payslip_exists ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -609,7 +611,7 @@ const Dashboard: React.FC = () => {
                     <th style={thStyle}>Name</th>
                     <th style={thStyle}>Role</th>
                     <th style={{ ...thStyle, width: deptColumnWidth }}>Dept</th>
-                    <th style={thStyle}>Manager</th>
+                      <th style={thStyle}>Manager</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -620,7 +622,7 @@ const Dashboard: React.FC = () => {
                       <td style={tdStyle}>{e.first_name} {e.last_name}</td>
                       <td style={tdStyle}>{e.role?.role || e.role}</td>
                       <td style={tdStyle}>{e.department_id || '-'}</td>
-                      <td style={tdStyle}>{e.manager_id || '-'}</td>
+                      <td style={tdStyle}>{e.manager ? `${e.manager.first_name} ${e.manager.last_name}` : (e.manager_id || '-')}</td>
                     </tr>
                   ))}
                 </tbody>
