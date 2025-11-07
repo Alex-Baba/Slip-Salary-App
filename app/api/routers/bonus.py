@@ -43,12 +43,12 @@ class BonusListView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
         from app.db.models import Bonus, Employee  # lightweight import here
         employee_id = request.query_params.get('employee_id')
-        # RBAC: admin sees all; manager sees department; employee sees own.
+        # RBAC: admin sees all; manager sees only direct reports; employee sees own.
         if employee_is_admin(actor):
             qs = Bonus.objects.all()
         elif employee_is_manager(actor):
-            dept_id = actor.department_id
-            qs = Bonus.objects.filter(employee__department_id=dept_id)
+            # Only bonuses for employees whose manager is the actor
+            qs = Bonus.objects.filter(employee__manager_id=actor.id)
         else:
             qs = Bonus.objects.filter(employee_id=actor.id)
         qs = qs.order_by('-date')
